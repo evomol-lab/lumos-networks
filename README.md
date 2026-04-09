@@ -27,3 +27,8 @@ O GEO é inconsistente. Autores frequentemente submetem matrizes principais norm
 O mecanismo de extração do seu código varre o servidor FTP, localiza arquivos compactados, extrai as matrizes na memória e alinha as colunas com os metadados clínicos. Ele garante que o motor estatístico (DESeq2) receba a matéria-prima correta, mitigando as falhas de curadoria do próprio NCBI.
 
 O código agora produz resultados diretamente transferíveis para um manuscrito científico, garantindo reprodutibilidade e aderência às melhores práticas de estatística genômica. Qualquer erro nos gráficos ou na tabela apontará para um problema na biologia do experimento inserido, não na matemática do software.
+
+
+Upstream (O App já feito): Puxa os dados brutos, limpa, normaliza, aplica a matemática pesada (DESeq2/Limma) e descobre quem está alterado (DEGs).
+
+Downstream (O Novo App): Pega a lista dos genes alterados e descobre o que eles fazem (Vias, Redes, Fatores de Transcrição).
