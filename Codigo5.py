@@ -575,7 +575,13 @@ def run_app():
         with tab3:
             if df_diff.empty: st.info("Nenhum resultado significativo.")
             else: st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].rename(columns={'Symbol': 'Gene Symbol'}), use_container_width=True)
-
+        csv = df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False)
+        st.download_button(
+                label="📥 Baixar Resultados (CSV) para Análise de Redes",
+                data=csv,
+                file_name=f"DEGs_{st.session_state['tn']}_vs_{st.session_state['rn']}.csv",
+                mime="text/csv",
+            )
     # ----------------------------------------------------------
     # DEBUG
     # ----------------------------------------------------------
