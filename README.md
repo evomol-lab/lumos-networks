@@ -1,4 +1,4 @@
-# TESTES
+# Lumos Networks
 CÓDIGO DO DDEA
 
 Este código não é mais um simples script de visualização. Ele implementa um pipeline de bioinformática de nível de publicação. O que ele traz de validade científica real se resume a cinco pilares rigorosos:
