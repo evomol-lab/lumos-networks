@@ -385,7 +385,14 @@ def run_app():
                         {"type": "plot", "title": "Expression Heatmap", "fig": st.session_state.get('fig_h'), "part": 3}
                     ]
                     pdf_bytes = generate_pdf_report(elements)
-                    st.download_button("📥 Download PDF Report", pdf_bytes, "DDEA_Report.pdf", "application/pdf", use_container_width=True)
+                    file_name = f"{st.session_state.get('gse_id', 'DDEA')}_Report.pdf"
+                    st.download_button(
+                        label="📥 Download PDF Report",
+                        data=pdf_bytes,
+                        file_name=file_name,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
             else:
                 st.info("Execute a análise para habilitar o relatório.")
         else:
