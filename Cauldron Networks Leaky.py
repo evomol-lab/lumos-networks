@@ -105,18 +105,27 @@ def plot_network(df_string, genes_up, genes_down):
 st.title("Cauldron Networks Leaky 🕸️🍲 ")
 
 st.sidebar.header("1. Upload de DEGs")
-st.sidebar.markdown("Faça upload do CSV gerado no App Principal (App 1). O arquivo deve conter colunas como `Symbol`, `Log2FC` e `FDR`.")
+st.sidebar.markdown("Faça upload de um ou mais CSVs gerados no DDEA. O app irá combinar os genes únicos de todos os arquivos.")
 
-uploaded_file = st.sidebar.file_uploader("Upload DEGs (CSV)", type=['csv'])
+# Alteração: accept_multiple_files=True
+uploaded_files = st.sidebar.file_uploader("Upload DEGs (CSV)", type=['csv'], accept_multiple_files=True)
 
-if uploaded_file:
-    df_raw = pd.read_csv(uploaded_file)
-    
-    # Validação Básica
-    required_cols = {'Symbol', 'Log2FC', 'FDR'}
-    if not required_cols.issubset(df_raw.columns):
-        st.error(f"Erro: O CSV deve conter as colunas: {required_cols}")
+if uploaded_files:
+    dfs = []
+    for uploaded_file in uploaded_files:
+        df_temp = pd.read_csv(uploaded_file)
+        
+        # Validação Básica por arquivo
+        required_cols = {'Symbol', 'Log2FC', 'FDR'}
+        if not required_cols.issubset(df_temp.columns):
+            st.error(f"Erro no arquivo {uploaded_file.name}: Deve conter as colunas: {required_cols}")
+            continue
+        dfs.append(df_temp)
+
+    if not dfs:
         st.stop()
+
+    df_raw = pd.concat(dfs).sort_values('FDR').drop_duplicates('Symbol', keep='first')
 
     st.sidebar.divider()
     st.sidebar.header("2. Filtros de Análise")

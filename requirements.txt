@@ -10,3 +10,5 @@ scikit-learn
 pydeseq2
 fpdf2
 kaleido==0.2.1
+gseapy
+networkx

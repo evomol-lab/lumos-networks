@@ -607,7 +607,13 @@ def run_app():
 
         with t4:
             st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']], use_container_width=True)
-            st.download_button("📥 Baixar CSV", df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False), f"DEGs.csv", "text/csv")
+            csv_name = f"{st.session_state.get('gse_id', 'DEGs')}_results.csv"
+            st.download_button(
+                label="📥 Baixar CSV", 
+                data=df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False), 
+                file_name=csv_name, 
+                mime="text/csv"
+            )
 
 if __name__ == '__main__':
     run_app()
