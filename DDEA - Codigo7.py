@@ -10,6 +10,9 @@ import io
 import re
 import gc
 import tarfile
+import os
+from datetime import datetime
+from fpdf import FPDF
 from Bio import Entrez
 import statsmodels.api as sm
 from statsmodels.stats.multitest import fdrcorrection
@@ -23,9 +26,131 @@ try:
     HAS_DESEQ2 = True
 except ImportError:
     HAS_DESEQ2 = False
-
 HEADERS = {'User-Agent': 'DDEA/4.0 (Streamlit App; Academic Version)'}
 Entrez.email = "ddea.tool@example.com"
+
+# ============================================================
+# PDF REPORT GENERATION CLASS
+# ============================================================
+
+class PDF(FPDF):
+    def __init__(self, orientation='P', unit='mm', format='A4'):
+        super().__init__(orientation, unit, format)
+        self.set_auto_page_break(auto=True, margin=15)
+        self.alias_nb_pages() 
+        self.slytherins_logo_path = 'logo_ddea_pdf.png' 
+        self.font_name = 'Helvetica'
+        
+        self.font_paths = {
+            'Regular': 'fonts/DejaVuSans.ttf',
+            'Bold': 'fonts/DejaVuSans-Bold.ttf',
+            'Italic': 'fonts/DejaVuSans-Oblique.ttf',
+            'BoldItalic': 'fonts/DejaVuSans-BoldOblique.ttf'
+        }
+        
+        try:
+            if os.path.exists(self.font_paths['Regular']):
+                # Registra Regular
+                self.add_font('DejaVu', '', self.font_paths['Regular'])
+                # Registra Bold (B)
+                if os.path.exists(self.font_paths['Bold']):
+                    self.add_font('DejaVu', 'B', self.font_paths['Bold'])
+                # Registra Italic (I) - RESOLVE O ERRO ATUAL
+                if os.path.exists(self.font_paths['Italic']):
+                    self.add_font('DejaVu', 'I', self.font_paths['Italic'])
+                
+                self.font_name = 'DejaVu'
+            else:
+                self.font_name = 'Helvetica'
+        except Exception: 
+            self.font_name = 'Helvetica' 
+        
+        self.set_font(self.font_name, '', 10) 
+
+    def _standardize_text(self, text):
+        text = str(text) 
+        replacements = { "’": "'", "‘": "'", "“": '"', "”": '"', "–": "-", "—": "--"}
+        for unicode_char, ascii_char in replacements.items():
+            text = text.replace(unicode_char, ascii_char)
+        return text
+
+    def header(self):
+        current_font_family = self.font_family; current_font_style = self.font_style; current_font_size = self.font_size_pt
+        self.set_font(self.font_name, 'B', 10 if self.page_no() == 1 else 8)
+        if self.page_no() == 1:
+            try:
+                if os.path.exists(self.slytherins_logo_path): self.image(self.slytherins_logo_path, x=10, y=8, w=30); self.ln(5) 
+            except: pass
+            self.set_font(self.font_name, 'B', 18)
+            self.cell(0, 10, self._standardize_text('DDEA Analysis Report'), 0, 1, 'C')
+            self.set_font(self.font_name, '', 10)
+            description_text = ('Diagonal Differential Expression Alley (DDEA)\n'
+                                'Developed by the EvoMol-Lab (github.com/evomol-lab).\n'
+                                'BioME, UFRN, Brazil (bioinfo.imd.ufrn.br).')
+            self.multi_cell(0, 5, self._standardize_text(description_text), 0, 'C'); self.ln(5)
+            self.set_font(self.font_name, 'I', 9)
+            self.cell(0, 8, self._standardize_text(f'Report Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'), 0, 1, 'C'); self.ln(10)
+        else: 
+            self.set_font(self.font_name, 'I', 8)
+            self.cell(0, 10, self._standardize_text('DDEA Report'), 0, 0, 'L')
+            self.cell(0, 10, f'Page {self.page_no()}/{{nb}}', 0, 0, 'R'); self.ln(10) 
+        self.set_font(current_font_family, style=current_font_style, size=current_font_size)
+
+    def footer(self):
+        self.set_y(-15); self.set_font(self.font_name, 'I', 8)
+        self.cell(0, 10, f'Page {self.page_no()}/{{nb}}', 0, 0, 'C')
+
+    def chapter_title(self, title):
+        self.set_font(self.font_name, 'B', 14); self.ln(10) 
+        self.cell(0, 10, self._standardize_text(title), 0, 1, 'L'); self.ln(4) 
+
+    def section_title(self, title): 
+        self.set_font(self.font_name, 'B', 12); self.ln(5)
+        self.cell(0, 8, self._standardize_text(title), 0, 1, 'L')
+        
+    def body_text(self, text): 
+        self.set_font(self.font_name, '', 9) 
+        self.multi_cell(0, 5, self._standardize_text(text)); self.ln(2)
+
+    def add_metric(self, label, value):
+        self.set_font(self.font_name, 'B', 10)
+        self.cell(60, 7, self._standardize_text(label) + ":", ln=0) 
+        self.set_font(self.font_name, '', 10)
+        self.multi_cell(0, 7, self._standardize_text(value), ln=1); self.ln(1)
+
+    def add_plotly_figure_to_pdf(self, fig, title, caption=None, fig_width_mm=170):
+        if fig is None: return
+        self.section_title(title) 
+        if caption: self.body_text(caption) 
+        try:
+            img_bytes = fig.to_image(format="png", scale=1.5) 
+            img_file = io.BytesIO(img_bytes)
+            page_width = self.w - 2 * self.l_margin 
+            img_render_width = min(fig_width_mm, page_width) 
+            x_pos = (self.w - img_render_width) / 2
+            self.image(img_file, x=x_pos, w=img_render_width); self.ln(5) 
+        except Exception as e:
+            self.set_font(self.font_name, 'I', 9); self.set_text_color(255, 0, 0) 
+            self.multi_cell(0, 5, self._standardize_text(f"Error embedding plot '{title}': {e}"))
+            self.set_text_color(0, 0, 0); self.ln()
+
+def generate_pdf_report(report_elements_list):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.current_part = 0 
+    for element in report_elements_list:
+        part = element.get("part")
+        if pdf.current_part != part: 
+            if part == 1: pdf.chapter_title("Differential Expression Overview")
+            elif part == 2: pdf.add_page(); pdf.chapter_title("Top Differentially Expressed Genes")
+            elif part == 3: pdf.add_page(); pdf.chapter_title("Clustering & Variation")
+            pdf.current_part = part
+        if element["type"] == "metric":
+            pdf.add_metric(element["label"], element["value"])
+        elif element["type"] == "plot": 
+            pdf.add_plotly_figure_to_pdf(element["fig"], element["title"], element.get("caption"))
+    pdf_output_object = pdf.output(dest='S')
+    return bytes(pdf_output_object) if not isinstance(pdf_output_object, str) else pdf_output_object.encode('latin-1')
 
 # ============================================================
 # NORMALIZAÇÃO E UTILITÁRIOS
@@ -208,6 +333,11 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
 
 def run_app():
     st.set_page_config(layout="wide", page_title="DDEA Analytics Master")
+    with st.sidebar:
+        if os.path.exists("logo_ddea_streamlit.png"):
+            st.image("logo_ddea_streamlit.png", use_container_width=True)
+        st.title("DDEA Analytics")
+        st.divider()
     st.title("Diagonal Differential Expression Alley 🧬")
 
     if 'groups' not in st.session_state: st.session_state['groups'] = {}
@@ -240,6 +370,24 @@ def run_app():
             fc_thr = st.slider("Min Abs Log2FC:", 0.0, 10.0, 1.0, step=0.1)
             use_limma = st.checkbox("Usar modelo linear", value=True) if mode == "Microarray" else False
             max_plot = st.number_input("Top genes p/ Heatmap:", value=50, min_value=5)
+
+            st.divider()
+            st.header("3. Export Report")
+            if st.session_state.get('analysis_done'):
+                if st.button("📄 Generate PDF Report", use_container_width=True):
+                    elements = [
+                        {"type": "metric", "label": "Comparison", "value": f"{st.session_state['tn']} vs {st.session_state['rn']}", "part": 1},
+                        {"type": "metric", "label": "DEGs Count", "value": str(len(st.session_state.get('df_diff', []))), "part": 1},
+                        {"type": "plot", "title": "Volcano Plot", "fig": st.session_state.get('fig_v'), "part": 1},
+                        {"type": "plot", "title": "Top Up-regulated Genes", "fig": st.session_state.get('fig_up'), "part": 2},
+                        {"type": "plot", "title": "Top Down-regulated Genes", "fig": st.session_state.get('fig_down'), "part": 2},
+                        {"type": "plot", "title": "PCA Analysis", "fig": st.session_state.get('fig_pca'), "part": 3},
+                        {"type": "plot", "title": "Expression Heatmap", "fig": st.session_state.get('fig_h'), "part": 3}
+                    ]
+                    pdf_bytes = generate_pdf_report(elements)
+                    st.download_button("📥 Download PDF Report", pdf_bytes, "DDEA_Report.pdf", "application/pdf", use_container_width=True)
+            else:
+                st.info("Execute a análise para habilitar o relatório.")
         else:
             label_cols = ['Accession', 'Title']; gene_area = ""; p_thr = 0.05; fc_thr = 1.0; use_limma = False; max_plot = 50; apply_log = True
 
@@ -248,12 +396,30 @@ def run_app():
         with st.spinner("🚀 Buscando dados..."):
             df, meta_df, gsms, gsm_order, source, err, detected_type = get_geo_full_data(gse_input.strip(), mode)
             if meta_df is not None:
-                st.session_state.update({'mode': mode, 'gse_id': gse_input.strip(), 'meta_df': meta_df, 'gsm_order': gsm_order, 'df': df})
+                keys_to_reset = ['analysis_done', 'res', 'norm_df', 'df_diff', 'groups', 
+                                 'fig_v', 'fig_pca', 'fig_up', 'fig_down', 'fig_h']
+                for key in keys_to_reset:
+                    if key in st.session_state:
+                        if key == 'groups':
+                            st.session_state[key] = {}
+                        else:
+                            del st.session_state[key]
+
+                st.session_state.update({
+                    'mode': mode, 
+                    'gse_id': gse_input.strip(), 
+                    'meta_df': meta_df, 
+                    'gsm_order': gsm_order, 
+                    'df': df,
+                    'detected_type': detected_type
+                })
+                
                 if df is not None:
                     id_type = detect_index_type(df.index.tolist())
                     mapping, msg = get_gene_mapping_rnaseq(tuple(df.index.astype(str).tolist()), id_type) if mode == "RNASeq" else get_gene_mapping_microarray(gse_input.strip())
                     st.session_state.update({'mapping': mapping, 'id_type': id_type, 'matrix_source': source})
                     st.success(f"✅ Matriz via **{source}** — {df.shape[0]} genes × {df.shape[1]} amostras")
+                
                 st.rerun()
 
     if 'meta_df' not in st.session_state: return
@@ -266,16 +432,22 @@ def run_app():
 
     st.subheader("🛠️ Group Management")
     c_i, c_b = st.columns([3, 1])
-    new_g = c_i.text_input("New Group Name:")
-    if c_b.button("➕ Add Group", use_container_width=True) and new_g.strip():
-        st.session_state['groups'][new_g.strip()] = []
-        st.rerun()
+    def add_group_callback():
+        new_g_name = st.session_state.new_group_input.strip()
+        if new_g_name:
+            st.session_state['groups'][new_g_name] = []
+            st.session_state.new_group_input = ""
+
+    c_i.text_input("New Group Name:", key="new_group_input")
+    c_b.button("➕ Add Group", use_container_width=True, on_click=add_group_callback)
 
     cols_g = st.columns(2)
     for i, (g_name, g_samples) in enumerate(list(st.session_state['groups'].items())):
         avail = [lab for lab in meta['display_label'] if lab not in sum(st.session_state['groups'].values(), []) or lab in g_samples]
         st.session_state['groups'][g_name] = cols_g[i % 2].multiselect(f"**{g_name}**", avail, default=[s for s in g_samples if s in avail], key=f"s_{g_name}")
-        if cols_g[i % 2].button("🗑️ Remove", key=f"del_{g_name}"): del st.session_state['groups'][g_name]; st.rerun()
+        if cols_g[i % 2].button("🗑️ Remove", key=f"del_{g_name}"):
+            del st.session_state['groups'][g_name]
+            st.rerun()
 
     # ---- UPLOAD MANUAL MULTI-FILE ----
     if st.session_state.get('df') is None:
@@ -377,6 +549,7 @@ def run_app():
         res['-log10(FDR)'] = -np.log10(res['FDR'] + 1e-300)
 
         df_diff = res[res['Status'] != 'Not Significant'].sort_values('FDR')
+        st.session_state['df_diff'] = df_diff # Salva para o PDF
         up_list = df_diff[df_diff['Status'] == 'Up-regulated']
         down_list = df_diff[df_diff['Status'] == 'Down-regulated']
 
@@ -386,39 +559,48 @@ def run_app():
         m2.metric("Up-Regulated 📈", len(up_list))
         m3.metric("Down-Regulated 📉", len(down_list))
 
-        t1, t2, t3, t4 = st.tabs(["📊 Volcano & PCA", "🔝 Top DEGs (Bars)", "🔥 Heatmap", "📋 Data Table"])
+        t1, t2, t3, t4 = st.tabs(["📊 Volcano & PCA", "🔝 Top DEGs", "🔥 Heatmap", "📋 Data Table"])
 
         with t1:
             fig_v = px.scatter(res, x='Log2FC', y='-log10(FDR)', color='Status', color_discrete_map={'Not Significant': 'lightgrey', 'Up-regulated': 'red', 'Down-regulated': 'blue'}, hover_name='Symbol')
             fig_v.add_vline(x=fc_thr, line_dash="dash"); fig_v.add_vline(x=-fc_thr, line_dash="dash")
             fig_v.add_hline(y=-np.log10(p_thr), line_dash="dash")
-            st.plotly_chart(fig_v.update_layout(template="simple_white", height=500), use_container_width=True)
+            st.session_state['fig_v'] = fig_v.update_layout(template="simple_white", height=500)
+            st.plotly_chart(st.session_state['fig_v'], use_container_width=True)
             
             try:
                 pca = PCA(n_components=2)
                 pc = pca.fit_transform(df_norm.fillna(0).T)
                 df_pc = pd.DataFrame(pc, columns=['PC1', 'PC2'], index=df_norm.columns)
                 df_pc['Group'] = [st.session_state['rn'] if x in st.session_state['c_ref'] else st.session_state['tn'] for x in df_pc.index]
-                st.plotly_chart(px.scatter(df_pc, x='PC1', y='PC2', color='Group', text=df_pc.index).update_traces(textposition='top center'), use_container_width=True)
+                # SALVANDO o PCA
+                st.session_state['fig_pca'] = px.scatter(df_pc, x='PC1', y='PC2', color='Group', text=df_pc.index).update_traces(textposition='top center')
+                st.plotly_chart(st.session_state['fig_pca'], use_container_width=True)
             except: pass
 
         with t2:
             ca, cb = st.columns(2)
             if not up_list.empty:
-                ca.plotly_chart(px.bar(up_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Reds', title="Top 20 UP"), use_container_width=True)
+                # SALVANDO Top Up
+                st.session_state['fig_up'] = px.bar(up_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Reds', title="Top 20 UP")
+                ca.plotly_chart(st.session_state['fig_up'], use_container_width=True)
             if not down_list.empty:
-                cb.plotly_chart(px.bar(down_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Blues_r', title="Top 20 DOWN"), use_container_width=True)
+                # SALVANDO Top Down
+                st.session_state['fig_down'] = px.bar(down_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Blues_r', title="Top 20 DOWN")
+                cb.plotly_chart(st.session_state['fig_down'], use_container_width=True)
 
         with t3:
             if not df_diff.empty:
                 valid_ids = [idx for idx in df_diff.head(max_plot)['Probe_ID'] if idx in df_norm.index]
                 h_mat = df_norm.loc[valid_ids].values
                 h_z = (h_mat - np.mean(h_mat, axis=1, keepdims=True)) / (np.std(h_mat, axis=1, keepdims=True) + 1e-9)
-                st.plotly_chart(go.Figure(data=go.Heatmap(z=h_z, x=df_norm.columns, y=df_diff.head(len(valid_ids))['Symbol'].tolist(), colorscale='RdBu_r', zmid=0)).update_layout(height=max(400, len(valid_ids)*20)), use_container_width=True)
+                # SALVANDO Heatmap
+                st.session_state['fig_h'] = go.Figure(data=go.Heatmap(z=h_z, x=df_norm.columns, y=df_diff.head(len(valid_ids))['Symbol'].tolist(), colorscale='RdBu_r', zmid=0)).update_layout(height=max(400, len(valid_ids)*20))
+                st.plotly_chart(st.session_state['fig_h'], use_container_width=True)
 
         with t4:
             st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']], use_container_width=True)
-            st.download_button("📥 Baixar Matriz de DEGs (CSV)", df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False), f"DEGs_{st.session_state['tn']}_vs_{st.session_state['rn']}.csv", "text/csv")
+            st.download_button("📥 Baixar CSV", df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False), f"DEGs.csv", "text/csv")
 
 if __name__ == '__main__':
     run_app()
