@@ -7,7 +7,7 @@ import gseapy as gp
 import requests
 import networkx as nx
 
-st.set_page_config(layout="wide", page_title="Cauldron Networks Leaky")
+st.set_page_config(layout="wide", page_title="Arithmancy Pathway Profiler")
 
 # ============================================================
 # FUNÇÕES DE ENRIQUECIMENTO (GSEAPY) E REDES (STRING)
@@ -102,7 +102,7 @@ def plot_network(df_string, genes_up, genes_down):
 # APP PRINCIPAL
 # ============================================================
 
-st.title("Cauldron Networks Leaky 🕸️🍲 ")
+st.title("Arithmancy Pathway Profiler 🕸️ ")
 
 st.sidebar.header("1. Upload de DEGs")
 st.sidebar.markdown("Faça upload de um ou mais CSVs gerados no DDEA. O app irá combinar os genes únicos de todos os arquivos.")
