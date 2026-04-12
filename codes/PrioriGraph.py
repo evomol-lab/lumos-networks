@@ -1,223 +1,127 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import networkx as nx
-import plotly.graph_objects as go
 import plotly.express as px
+from streamlit_agraph import agraph, Node, Edge, Config
 
-st.set_page_config(layout="wide", page_title="PrioriGraph Master")
-
-# ============================================================
-# FUNÇÕES DE PROCESSAMENTO
-# ============================================================
-
-def load_and_combine_degs(files):
-    all_dfs = []
-    for f in files:
-        df = pd.read_csv(f)
-        df.columns = [c.strip() for c in df.columns]
-        if 'Symbol' in df.columns:
-            all_dfs.append(df)
-    if not all_dfs: return pd.DataFrame()
-    return pd.concat(all_dfs).sort_values('FDR').drop_duplicates('Symbol')
-
-def build_network(files_tfs, df_degs):
-    G = nx.DiGraph()
-    # Criamos um set de busca rápida para garantir que só conectamos aos nossos DEGs
-    valid_genes = set(df_degs['Symbol'].astype(str).str.strip().str.upper().unique())
-    
-    for f in files_tfs:
-        df_i = pd.read_csv(f)
-        df_i.columns = [c.strip() for c in df_i.columns]
-        
-        # O App 2/Enrichr geralmente usa 'Term' para TF e 'Genes' para a lista
-        tf_col = next((c for c in ['Transcription Factor', 'Term', 'Transcription Factors'] if c in df_i.columns), None)
-        gene_col = next((c for c in ['Genes', 'Target', 'Gene'] if c in df_i.columns), None)
-        
-        if tf_col and gene_col:
-            for _, row in df_i.iterrows():
-                # 1. Limpeza do TF (exatamente como no R)
-                tf_raw = str(row[tf_col]).split(' (')[0].split('_')[0].strip().upper()
-                
-                # 2. TRATAMENTO CRÍTICO: Quebrar a célula de genes do App 2
-                # O Enrichr usa ';' ou ',' dependendo da versão
-                raw_text = str(row[gene_col])
-                if ';' in raw_text:
-                    targets = raw_text.split(';')
-                else:
-                    targets = raw_text.split(',')
-                
-                for g in targets:
-                    g_clean = g.strip().upper()
-                    
-                    # 3. Filtro de Interseção (Só conta se o gene alvo estiver nos seus DEGs)
-                    if g_clean in valid_genes:
-                        G.add_edge(tf_raw, g_clean)
-                        
-    G.remove_edges_from(nx.selfloop_edges(G))
-    return G
+st.set_page_config(layout="wide", page_title="PrioriGraph")
 
 # ============================================================
-# INTERFACE
+# INTERFACE PRINCIPAL
 # ============================================================
 
-st.title("PrioriGraph Master: Bioinformática de Sistemas 🧬")
+st.title("PrioriGraph 👑")
+st.markdown("### Integração de Redes Regulatórias (TF -> Genes)")
 
 with st.sidebar:
-    st.header("📂 Gerenciador de Arquivos")
-    up_degs = st.file_uploader("Upload DEGs CSV(s)", type=['csv'], accept_multiple_files=True)
-    up_tfs = st.file_uploader("Upload TFs/JASPAR CSV(s)", type=['csv'], accept_multiple_files=True)
+    st.header("📂 1. Carga de Dados")
+    uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
     
     st.divider()
-    st.header("⚙️ Ajustes")
-    layout_type = st.selectbox("Layout da Rede:", ["Spring", "Kamada-Kawai", "Circular"])
-    top_n = st.slider("Quantidade de Hubs/MRs nos gráficos:", 5, 50, 10)
+    st.header("🔍 2. Localizar na Rede")
+    search_query = st.text_input("Digite o nome do TF ou Gene:", "").strip().upper()
+    
+    st.divider()
+    st.header("📐 Ajustes de Visualização")
+    g_width = st.slider("Largura da Área:", 600, 1800, 1100, 50)
+    g_height = st.slider("Altura da Área:", 400, 1200, 800, 50)
+    
+    st.divider()
+    st.header("🎨 Legenda da Rede")
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <div style="width: 20px; height: 20px; background-color: #FF4B4B; border-radius: 50%; margin-right: 10px; border: 1px solid #333;"></div>
+        <b>Fator de Transcrição (TF)</b>
+    </div>
+    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <div style="width: 20px; height: 20px; background-color: #1C83E1; border-radius: 50%; margin-right: 10px; border: 1px solid #333;"></div>
+        <b>Gene Alvo (Target)</b>
+    </div>
+    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <div style="width: 20px; height: 20px; background-color: #FFD700; border-radius: 50%; margin-right: 10px; border: 2px solid #000;"></div>
+        <b>Destaque: {search_query if search_query else 'Nenhum'}</b>
+    </div>
+    """, unsafe_allow_html=True)
 
-if up_degs and up_tfs:
-    df_degs = load_and_combine_degs(up_degs)
-    G = build_network(up_tfs, df_degs)
+if uploaded_files:
+    all_interactions = []
+    # DataFrame para o gráfico de barras (precisa do FDR/Adj P-value)
+    plot_data_list = []
 
-    if len(G.nodes) == 0:
-        st.error("Erro: Nenhuma conexão encontrada. Verifique se os nomes dos genes no App 1 e App 2 coincidem.")
+    for f in uploaded_files:
+        df_temp = pd.read_csv(f)
+        col_tf = next((c for c in ['TF_Symbol', 'TF_Name'] if c in df_temp.columns), None)
+        col_genes = next((c for c in ['Genes', 'Target_Gene'] if c in df_temp.columns), None)
+        
+        if col_tf and col_genes:
+            # Dados para o gráfico (Top TFs por significância)
+            if 'Adjusted P-value' in df_temp.columns:
+                plot_data_list.append(df_temp[[col_tf, 'Adjusted P-value']].copy())
+
+            # Dados para a rede
+            df_temp[col_genes] = df_temp[col_genes].astype(str)
+            df_temp = df_temp.assign(Gene=df_temp[col_genes].str.split(';')).explode('Gene')
+            df_temp = df_temp[[col_tf, 'Gene']].rename(columns={col_tf: 'TF', 'Gene': 'Target'})
+            all_interactions.append(df_temp)
+    
+    if not all_interactions:
+        st.error("Nenhuma coluna compatível encontrada.")
         st.stop()
-
-    # Cálculo de Métricas
-    metrics = pd.DataFrame({
-        'Node': list(G.nodes()),
-        'Out_Degree': [G.out_degree(n) for n in G.nodes()],
-        'In_Degree': [G.in_degree(n) for n in G.nodes()],
-        'Total_Degree': [G.degree(n) for n in G.nodes()]
-    })
-    
-    # Define Tipos para cores (igual ao seu código R)
-    metrics['Type'] = 'Gene'
-    tfs_list = [n for n, d in G.out_degree() if d > 0]
-    metrics.loc[metrics['Node'].isin(tfs_list), 'Type'] = 'TF'
-    
-    mr_list = metrics[metrics['Type'] == 'TF'].nlargest(top_n, 'Out_Degree')['Node'].tolist()
-    hub_list = metrics.nlargest(top_n, 'Total_Degree')['Node'].tolist()
-
-    # --- TABELAS E GRÁFICOS (ESTILO RSTUDIO) ---
-    tab1, tab2 = st.tabs(["🕸️ Network Visualization", "📊 Hubs & Master Regulators"])
-
-    with tab1:
-        st.subheader("Interactive Gene Regulation Network")
         
-        # Escolha do Layout
-        if layout_type == "Spring": pos = nx.spring_layout(G, k=0.2)
-        elif layout_type == "Circular": pos = nx.circular_layout(G)
-        else: pos = nx.kamada_kawai_layout(G)
+    df_final = pd.concat(all_interactions).drop_duplicates()
+    df_final['TF'] = df_final['TF'].astype(str).str.strip().str.upper()
+    df_final['Target'] = df_final['Target'].astype(str).str.strip().str.upper()
 
-        # 1. Desenhar Arestas (Linhas)
-        edge_traces = []
-        for edge in G.edges():
-            x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]
-            edge_traces.append(go.Scatter(x=[x0, x1, None], y=[y0, y1, None], 
-                                          line=dict(width=0.4, color='#bdbdbd'), mode='lines', hoverinfo='none', showlegend=False))
+    # 1. Gráfico de Interação (Master Regulators por FDR)
+    if plot_data_list:
+        st.subheader("📊 Significância Regulatória (Top TFs)")
+        df_plot = pd.concat(plot_data_list).drop_duplicates()
+        df_plot['-log10(FDR)'] = -np.log10(df_plot['Adjusted P-value'] + 1e-10)
+        df_plot = df_plot.sort_values('-log10(FDR)', ascending=False).head(15)
+        fig = px.bar(df_plot, x='-log10(FDR)', y=df_plot.columns[0], orientation='h', 
+                     color='Adjusted P-value', color_continuous_scale='Viridis_r')
+        st.plotly_chart(fig, use_container_width=True)
 
-        # 2. Lógica de Cores e Categorias para a Legenda
-        categories = {
-            "Master Regulator": {"color": "#984ea3", "size": 28},
-            "Hub Gene": {"color": "#FFD700", "size": 22},
-            "Transcription Factor": {"color": "#377eb8", "size": 15},
-            "Target Gene": {"color": "#e41a1c", "size": 10}
-        }
+    # 2. Rede Agraph
+    nodes, edges, nodes_added = [], [], set()
+    tfs_list = set(df_final['TF'].unique())
 
-        # Criar traços invisíveis apenas para a LEGENDA
-        legend_traces = []
-        for cat, style in categories.items():
-            legend_traces.append(go.Scatter(
-                x=[None], y=[None], mode='markers',
-                marker=dict(size=style['size'], color=style['color']),
-                legendgroup=cat, showlegend=True, name=cat
-            ))
+    for _, row in df_final.iterrows():
+        tf, target = row['TF'], row['Target']
+        if tf == 'NAN' or target == 'NAN' or not tf or not target: continue
 
-        # 3. Desenhar os Nós Reais
-        node_x, node_y, node_color, node_size, node_text = [], [], [], [], []
-        for node in G.nodes():
-            x, y = pos[node]; node_x.append(x); node_y.append(y)
-            
-            if node in mr_list:
-                node_color.append(categories["Master Regulator"]["color"])
-                node_size.append(categories["Master Regulator"]["size"])
-            elif node in hub_list:
-                node_color.append(categories["Hub Gene"]["color"])
-                node_size.append(categories["Hub Gene"]["size"])
-            elif node in tfs_list:
-                node_color.append(categories["Transcription Factor"]["color"])
-                node_size.append(categories["Transcription Factor"]["size"])
-            else:
-                node_color.append(categories["Target Gene"]["color"])
-                node_size.append(categories["Target Gene"]["size"])
-            node_text.append(node)
+        for n in [tf, target]:
+            if n not in nodes_added:
+                color = "#FF4B4B" if n in tfs_list else "#1C83E1"
+                size, stroke_w, stroke_c = 20, 1, "#333"
+                if search_query and search_query == n:
+                    color, size, stroke_w, stroke_c = "#FFD700", 45, 3, "#000"
+                nodes.append(Node(id=n, label=n, size=size, color=color, strokeWidth=stroke_w, strokeColor=stroke_c))
+                nodes_added.add(n)
+        edges.append(Edge(source=tf, target=target, directed=True, color="#999"))
 
-        node_trace = go.Scatter(
-            x=node_x, y=node_y, mode='markers+text',
-            text=[n if n in mr_list or n in hub_list else '' for n in G.nodes()],
-            textposition="top center",
-            marker=dict(color=node_color, size=node_size, line_width=1.5, line_color='white'),
-            hoverinfo='text', hovertext=node_text, showlegend=False
-        )
+    st.subheader("🕸️ Rede Regulatória Integrada")
+    config = Config(width=g_width, height=g_height, directed=True, physics=False, hierarchical=False)
+    agraph(nodes=nodes, edges=edges, config=config)
 
-        # Combinar tudo no gráfico
-        fig_net = go.Figure(data=edge_traces + legend_traces + [node_trace])
-        
-        fig_net.update_layout(
-            legend=dict(title="Legenda da Rede:", orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            template='simple_white', height=750,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-        )
-        
-        st.plotly_chart(fig_net, use_container_width=True)
+    # 3. Rankings Decrescentes
+    st.divider()
+    col_rank1, col_rank2 = st.columns(2)
+    with col_rank1:
+        st.subheader("🏆 Master Regulators (Out-Degree)")
+        master_rank = df_final['TF'].value_counts().reset_index()
+        master_rank.columns = ['Fator de Transcrição', 'Nº de Alvos']
+        st.dataframe(master_rank, use_container_width=True, hide_index=True)
+    with col_rank2:
+        st.subheader("🎯 Genetic Hubs (In-Degree)")
+        hub_rank = df_final['Target'].value_counts().reset_index()
+        hub_rank.columns = ['Gene Alvo', 'Nº de Reguladores']
+        st.dataframe(hub_rank, use_container_width=True, hide_index=True)
 
-    with tab2:
-        col1, col2 = st.columns(2)
-        
-        # 1. Gráfico Master Regulators (Out-degree)
-        with col1:
-            st.markdown("### 🏆 Master Regulators")
-            # Filtrar TFs e ordenar
-            df_mr = metrics[metrics['Type'] == 'TF'].nlargest(top_n, 'Out_Degree').sort_values('Out_Degree')
-            
-            fig_mr = px.bar(
-                df_mr, 
-                x='Out_Degree', 
-                y='Node', 
-                orientation='h',
-                title=f"Top {top_n} MRs (by Out-Degree)",
-                color_discrete_sequence=['#377eb8'], # Azul para TFs
-                labels={'Node': 'Transcription Factor', 'Out_Degree': 'Grau de Saída'}
-            )
-            fig_mr.update_layout(template="simple_white", yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_mr, use_container_width=True)
-
-        # 2. Gráfico Hub Genes (Total-degree)
-        with col2:
-            st.markdown("### 🎯 Hub Nodes")
-            # Pega os principais hubs idependente do tipo
-            df_hub = metrics.nlargest(top_n, 'Total_Degree').sort_values('Total_Degree')
-            
-            # Mapeamento de cores para os hubs
-            color_map_hubs = {"TF": "#377eb8", "Gene": "#e41a1c"}
-            
-            fig_hub = px.bar(
-                df_hub, 
-                x='Total_Degree', 
-                y='Node', 
-                orientation='h',
-                title=f"Top {top_n} Hubs (by Total Degree)",
-                color='Type', # Define a cor baseada no tipo (Gene ou TF)
-                color_discrete_map=color_map_hubs,
-                labels={'Node': 'Node Name', 'Total_Degree': 'Grau Total', 'Type': 'Categoria'}
-            )
-            fig_hub.update_layout(template="simple_white", yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_hub, use_container_width=True)
-            
-        st.divider()
-        st.subheader("📋 Centrality Data Table")
-        # Exibe a tabela completa com a coluna de tipo para conferência
-        st.dataframe(metrics.sort_values('Total_Degree', ascending=False), use_container_width=True)
+    st.divider()
+    st.subheader("📄 Tabela Consolidada de Interações")
+    st.dataframe(df_final.sort_values('TF'), use_container_width=True, hide_index=True)
 
 else:
-    st.info("Aguardando upload dos arquivos CSV para gerar a rede e os gráficos de centralidade.")
+    st.info("Aguardando upload dos arquivos CSV.")
+    
