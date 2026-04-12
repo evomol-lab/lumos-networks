@@ -90,6 +90,8 @@ ________________________________________________________________________________
 The repository follows the Streamlit Multipage pattern:
 
 ```text
+text
+___________________________________________________________
 lumos-networks/
 ├── Lumos_Home.py          # Landing page & Global Config
 ├── requirements.txt       # Version-controlled dependencies
@@ -98,6 +100,7 @@ lumos-networks/
 │   ├── 2_APP.py           # Enrichment Analysis logic
 │   └── 3_PrioriGraph.py   # Network construction logic
 └── assets/                # Logos and documentation images
+```
 
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 🤝 **6. Credits & Support**
