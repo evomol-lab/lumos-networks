@@ -50,19 +50,19 @@ with col1:
     
     st.subheader("Módulos da Suíte")
     
-    with st.expander("1. DDEA (Differential Expression)", expanded=True):
+    with st.expander("1. DDEA (Diagonal Differential Expression Alley)", expanded=True):
         st.markdown("""
         Realiza a análise de expressão gênica diferencial utilizando o framework **PyDESeq2**, 
         garantindo rigor estatístico para experimentos com réplicas biológicas.
         """)
         
-    with st.expander("2. APP (Enrichment Analysis)", expanded=False):
+    with st.expander("2. APP (Aritchmancy Pathway Profiler)", expanded=False):
         st.markdown("""
         Módulo voltado para análise de enriquecimento funcional. Identifica vias metabólicas e processos 
         biológicos super-representados em listas de genes de interesse.
         """)
         
-    with st.expander("3. PrioriGraph (Network Biology)", expanded=False):
+    with st.expander("3. PG (PrioriGraph)", expanded=False):
         st.markdown("""
         Ferramenta de construção de redes baseada em conhecimento prévio e integração de dados, 
         permitindo a visualização de interações moleculares e identificação de hubs biológicos.
@@ -88,6 +88,6 @@ st.divider()
 # Rodapé formatado
 col_f1, col_f2 = st.columns([3, 1])
 with col_f1:
-    st.caption("Lumos Networks © 2026 | Desenvolvido por Integrantes do EvoMol-Lab no Centro de Biociências - UFRN")
+    st.caption("Lumos Networks © 2026 | Desenvolvido por Integrantes do EvoMol-Lab no BioME - UFRN")
 with col_f2:
     st.caption("📍 Natal, RN - Brasil")
