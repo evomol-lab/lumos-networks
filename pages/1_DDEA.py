@@ -29,7 +29,7 @@ except ImportError:
 HEADERS = {'User-Agent': 'DDEA/4.0 (Streamlit App; Academic Version)'}
 Entrez.email = "ddea.tool@example.com"
 
-_________________________________________________________________________________
+
 import streamlit as st
 import os
 
@@ -46,7 +46,6 @@ with st.sidebar:
     else:
         # Debug ruthlessly: se não aparecer, ele mostra onde tentou procurar
         st.error(f"Erro: Logo não encontrado em {logo_path}")
-________________________________________________________________________________
 
 # ============================================================
 # PDF REPORT GENERATION CLASS
