@@ -13,7 +13,8 @@ with tab1:
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("🔬 Fundamentos")
-        st.markdownr("""### 🧬 Fundamentos Estatísticos
+        st.markdownr(r"""
+        ### 🧬 Fundamentos Estatísticos
     
     O módulo **DDEA** implementa a análise de expressão diferencial fundamentada em modelos lineares generalizados (**GLM**). 
     A escolha da distribuição **Binomial Negativa (NB)** é essencial para lidar com a natureza discreta dos dados de 
