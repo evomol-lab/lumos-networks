@@ -108,6 +108,7 @@ lumos-networks/
 
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 🤝 **6. Credits & Support**
+
 The Lumos Networks suite is an ongoing collaborative effort developed at the EvoMol-Lab (Laboratory of Molecular Evolution and Bioinformatics), part of the Bioinformatics Multidisciplinary Environment (BioME) at the Federal University of Rio Grande do Norte (UFRN), Brazil.
 
 👥 Development Team
@@ -128,6 +129,7 @@ UFRN (Institutional Support)
 
 _______________________________________________________________________________________________________________________________________________________________________________________________________
 ⚖ **7. Disclaimer**
+
 This software is provided for research purposes. The developer team utilized generative AI for UI/UX optimization, PDF reporting architecture, and documentation refinement to ensure the highest code quality and user experience.
 
 _______________________________________________________________________________________________________________________________________________________________________________________________________
