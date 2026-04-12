@@ -112,19 +112,29 @@ ________________________________________________________________________________
 The Lumos Networks suite is an ongoing collaborative effort developed at the EvoMol-Lab (Laboratory of Molecular Evolution and Bioinformatics), part of the Bioinformatics Multidisciplinary Environment (BioME) at the Federal University of Rio Grande do Norte (UFRN), Brazil.
 
 👥 Development Team
+
 Dr. João Paulo M. S. Lima – Principal Investigator (PI)
+
 MSc. Laís de Carvalho Gonçalves – PhD Student & Lead Developer
+
 Djorkaeff Oliveira Fontinele – Master’s Student & Developer
+
 Rodrigo Arruda Orvate – Master’s Student & Developer
 
 🏛 Institutions & Partners
+
 UFRN: Universidade Federal do Rio Grande do Norte.
+
 BioME: Multi-user Bioinformatics Center UFRN.
+
 EvoMol-Lab: Laboratory of Molecular Evolution and Systems Biology.
 
 💰 Financial Support
+
 This project is supported by the following Brazilian research agencies:
+
 CAPES (Coordination for the Improvement of Higher Education Personnel)
+
 UFRN (Institutional Support)
 
 _______________________________________________________________________________________________________________________________________________________________________________________________________
