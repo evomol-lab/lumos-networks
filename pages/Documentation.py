@@ -62,9 +62,17 @@ with tab2:
     with c2:
         st.markdown("### 🗃️ Bases de Dados")
         st.markdown("""
-        - **KEGG/GO:** Vias metabólicas e processos biológicos.
-        - **STRING:** Interações proteína-proteína (PPI) com score de evidência.
-        - **JASPAR/TRRUST:** Fatores de Transcrição e alvos regulatórios validados.
+        **1. KEGG & Reactome:**
+        Foco em vias metabólicas e cascatas de sinalização bioquímica clássicas.
+        
+        **2. Gene Ontology (GO):**
+        Classificação em Processo Biológico (BP), Função Molecular (MF) e Componente Celular (CC).
+
+        **3. STRING (PPI Networks):**
+        Mapeamento de interações proteína-proteína. Permite visualizar se os produtos dos genes diferencialmente expressos interagem fisicamente ou funcionalmente.
+        
+        **4. JASPAR & TRRUST:**
+        Enriquecimento de sítios de ligação de **Fatores de Transcrição (TFs)**, identificando potenciais reguladores mestres do sistema.
         """)
 
 with tab3:
