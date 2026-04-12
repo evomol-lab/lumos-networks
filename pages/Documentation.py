@@ -12,29 +12,29 @@ with tab1:
     
     col1, col2 = st.columns(2)
     with col1:
-        st.markdownr(r"""
-        ### 🧬 Fundamentos Estatísticos
-    
-    O módulo **DDEA** implementa a análise de expressão diferencial fundamentada em modelos lineares generalizados (**GLM**). 
-    A escolha da distribuição **Binomial Negativa (NB)** é essencial para lidar com a natureza discreta dos dados de 
-    sequenciamento e a característica de **sobre-dispersão**, onde a variância é superior à média.
+        st.markdown(r"""
+        ### 🔬 Fundamentos Estatísticos
+        
+        O módulo **DDEA** implementa a análise de expressão diferencial fundamentada em modelos lineares generalizados (**GLM**). 
+        A escolha da distribuição **Binomial Negativa (NB)** é essencial para lidar com a natureza discreta dos dados de 
+        sequenciamento e a característica de **sobre-dispersão**, onde a variância é superior à média.
 
-    #### 1. Modelagem Estocástica
-    A contagem de leituras $K_{ij}$ para o gene $i$ na amostra $j$ é modelada como:
+        #### 1. Modelagem Estocástica
+        A contagem de leituras $K_{ij}$ para o gene $i$ na amostra $j$ é modelada como:
 
-    $$K_{ij} \sim NB(\mu_{ij}, \alpha_i)$$
+        $$K_{ij} \sim NB(\mu_{ij}, \alpha_i)$$
 
-    Onde:
-    * **$\mu_{ij}$**: representa a média esperada das contagens.
-    * **$\alpha_i$**: é o parâmetro de dispersão específico do gene, que captura a variabilidade biológica extra-Poisson.
+        Onde:
+        * **$\mu_{ij}$**: representa a média esperada das contagens.
+        * **$\alpha_i$**: é o parâmetro de dispersão específico do gene, que captura a variabilidade biológica extra-Poisson.
 
-    #### 2. Normalização e Robustez
-    Para permitir a comparação entre amostras com diferentes profundidades de sequenciamento, utilizamos o método **Median-of-Ratios**. 
-    Este processo é superior à simples normalização por milhão (RPM/TPM) pois:
-    
-    * **Corrige vieses de composição:** Garante que genes altamente expressos em uma condição não criem falsos negativos nos demais.
-    * **Estabilidade:** Utiliza uma amostra de referência virtual baseada na média geométrica, tornando o teste de Wald subsequente muito mais confiável.
-    """)
+        #### 2. Normalização e Robustez
+        Para permitir a comparação entre amostras com diferentes profundidades de sequenciamento, utilizamos o método **Median-of-Ratios**. 
+        Este processo é superior à simples normalização por milhão (RPM/TPM) pois:
+        
+        * **Corrige vieses de composição:** Garante que genes altamente expressos em uma condição não criem falsos negativos nos demais.
+        * **Estabilidade:** Utiliza uma amostra de referência virtual baseada na média geométrica, tornando o teste de Wald subsequente muito mais confiável.
+        """)
 
     with col2:
         st.subheader("🛠️ Workflow")
