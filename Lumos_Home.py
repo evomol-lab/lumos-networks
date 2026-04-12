@@ -60,8 +60,7 @@ with col1:
         c1, c2 = st.columns([4, 1])
         with c1:
             st.markdown("""
-            Análise de enriquecimento funcional (GSEA/Enrichr). Identifica vias metabólicas e processos 
-            biológicos super-representados usando bases KEGG, GO e JASPAR.
+            Integração multidimensional com bases KEGG, GO, STRING e circuitos regulatórios (TFs).
             """)
         with c2:
             if os.path.exists("assets/logos/Arithmancy Pathway Profiler (APP) .png"):
