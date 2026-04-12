@@ -15,7 +15,9 @@ ________________________________________________________________________________
 
 Lumos is organized into three specialized modules, accessible via the sidebar in the multipage application:
 
+
 <img width="480" height="590" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
+
 
 📊 *1. DDEA (Differential Differential Expression Analysis)*
 
@@ -27,7 +29,9 @@ Features: Normalization, dispersion estimation, and Wald tests for differential 
 
 Output: Volcano plots, MA plots, and interactive result tables.
 
+
 <img width="2760" height="1504" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
+
 
 🧬 *2. APP (Analysis of Pathways & Processes)*
 
