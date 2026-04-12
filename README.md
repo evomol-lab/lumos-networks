@@ -52,17 +52,20 @@ Visualization: High-performance interactive graph rendering.
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 ⚙ **3. Installation & Local Execution**
 
-Bash
+```bash
 
-Clone the repository
+Clone o repositório
 git clone https://github.com/evomol-lab/lumos-networks.git
+
+Entre no diretório
 cd lumos-networks
 
-Install dependencies
+Instale as dependências
 pip install -r requirements.txt
 
-Run the application
+Execute a aplicação
 streamlit run Lumos_Home.py
+```
 
 _________________________________________________________________________________________________________________________________________________________________________________________________________
 📄 **4. Core Requirements**
