@@ -40,9 +40,9 @@ Output: Volcano plots, MA plots, and interactive result tables.
 
 A functional enrichment module using GSEApy.
 
-Features: Over-Representation Analysis (ORA) and Gene Set Enrichment Analysis (GSEA).
+Features: Gene Set Enrichment Analysis (GSEA).
 
-Databases: Integrated support for KEGG, Gene Ontology (GO), and Reactome.
+Databases: Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
 
@@ -50,9 +50,9 @@ Databases: Integrated support for KEGG, Gene Ontology (GO), and Reactome.
 
 Our flagship tool for building networks based on prior biological knowledge.
 
-Features: Integration of DEGs into interaction networks.
+Features: Integration of DEGs and transcription factors in interaction networks.
 
-Metrics: Identification of hub genes through degree and centrality analysis.
+Metrics: Identification of core genes and transcription factors through in-degree/out-degree and centrality analysis..
 
 Visualization: High-performance interactive graph rendering.
 
