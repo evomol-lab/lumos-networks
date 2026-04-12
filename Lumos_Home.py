@@ -32,7 +32,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Cabeçalho Principal
-st.markdown('<p class="main-title">LUMOS NETWORKS</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-title">LUMOS NETWORKS: Systems Biology Suite </p>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">Sistemas de Análise Integrada: Transcriptômica e Redes</p>', unsafe_allow_html=True)
 
 st.divider()
