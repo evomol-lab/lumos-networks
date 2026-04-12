@@ -45,6 +45,9 @@ Features: Gene Set Enrichment Analysis (GSEA).
 Databases: Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
+![PrioriGraph(PG)](https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f)
+
+
 
 🕸 **c. PrioriGraph (Network Biology)**
 
