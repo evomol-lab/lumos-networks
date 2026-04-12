@@ -86,10 +86,10 @@ Visualization: plotly, matplotlib, seaborn.
 
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 📁 **5. Project Structure**
+
 The repository follows the Streamlit Multipage pattern:
 
-Plaintext
-
+```text
 lumos-networks/
 ├── Lumos_Home.py          # Landing page & Global Config
 ├── requirements.txt       # Version-controlled dependencies
