@@ -121,6 +121,7 @@ Djorkaeff Oliveira Fontinele – Master’s Student & Developer
 
 Rodrigo Arruda Orvate – Master’s Student & Developer
 
+
 🏛 Institutions & Partners
 
 UFRN: Universidade Federal do Rio Grande do Norte.
@@ -128,6 +129,7 @@ UFRN: Universidade Federal do Rio Grande do Norte.
 BioME: Multi-user Bioinformatics Center UFRN.
 
 EvoMol-Lab: Laboratory of Molecular Evolution and Systems Biology.
+
 
 💰 Financial Support
 
