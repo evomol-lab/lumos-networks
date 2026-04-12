@@ -8,6 +8,23 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 st.set_page_config(layout="wide", page_title="Arithmancy Pathway Profiler")
 
+import streamlit as st
+import os
+
+# 1. Encontrar o diretório base do projeto (onde está o Lumos_Home.py)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 2. Construir o caminho para o logo específico
+# Exemplo para a página do DDEA:
+logo_path = os.path.join(BASE_DIR, "assets", "logos", "Arithmancy Pathway Profiler (APP) .png")
+
+with st.sidebar:
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+    else:
+        # Debug ruthlessly: se não aparecer, ele mostra onde tentou procurar
+        st.error(f"Erro: Logo não encontrado em {logo_path}")
+
 # ============================================================
 # FUNÇÕES DE PROCESSAMENTO
 # ============================================================
