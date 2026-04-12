@@ -3,7 +3,7 @@
 ## Lumos Networks 🧬
 An Integrated Suite for Transcriptomics and Biological Network Analysis
 
-Desenvolvido por Integrantes do EvoMol-Lab no Centro de Biociências - UFRN"
+Developed by members of the EvoMol-Lab at the Center for Biosciences - UFRN
 
 _______________________________________________________________________________________________________________________________________________________________________________________________________
 🌟 **1. Introduction**
