@@ -1,4 +1,5 @@
-![Lumos Networks](https://github.com/user-attachments/assets/d33379e4-4c7c-411c-ae8a-65b284836396)
+![Lumos Networkss](https://github.com/user-attachments/assets/910c7e5d-dd54-4930-9ae7-6952a5beeaf1)
+
 
 
 ## Lumos Networks 🧬
