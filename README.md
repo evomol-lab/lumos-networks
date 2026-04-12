@@ -52,18 +52,24 @@ Visualization: High-performance interactive graph rendering.
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 ⚙ **3. Installation & Local Execution**
 
-```Bash
-Bash
-# Clone the repository
-git clone https://github.com/evomol-lab/lumos-networks.git
+```bash
+# 1. Clone the repository
+git clone [https://github.com/evomol-lab/lumos-networks.git](https://github.com/evomol-lab/lumos-networks.git)
+
+# 2. Enter the directory
 cd lumos-networks
 
-# Install dependencies
+# 3. Create a virtual environment (Optional but Recommended)
+python -m venv venv
+source venv/bin/activate  
+
+# 4. Install dependencies
 pip install -r requirements.txt
 
-# Run the application
+# 5. Run the application
 streamlit run Lumos_Home.py
-```
+
+
 _________________________________________________________________________________________________________________________________________________________________________________________________________
 📄 **4. Core Requirements**
 
