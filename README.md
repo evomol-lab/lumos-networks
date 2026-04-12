@@ -53,6 +53,8 @@ ________________________________________________________________________________
 ⚙ **3. Installation & Local Execution**
 
 ```bash
+# Bash
+____________________________________________________________________________________________________________
 # 1. Clone the repository
 git clone [https://github.com/evomol-lab/lumos-networks.git](https://github.com/evomol-lab/lumos-networks.git)
 
@@ -61,15 +63,14 @@ cd lumos-networks
 
 # 3. Create a virtual environment (Optional but Recommended)
 python -m venv venv
-source venv/bin/activate  
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # 4. Install dependencies
 pip install -r requirements.txt
 
 # 5. Run the application
 streamlit run Lumos_Home.py
-
-
+```
 _________________________________________________________________________________________________________________________________________________________________________________________________________
 📄 **4. Core Requirements**
 
