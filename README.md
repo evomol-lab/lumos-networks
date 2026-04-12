@@ -1,4 +1,139 @@
-# Lumos Networks
+<img width="2760" height="1504" alt="Lumos Networks" src="https://github.com/user-attachments/assets/35c16a4d-b288-432c-9745-81aa8f3f8f35" />
+
+## Lumos Networks 🧬
+An Integrated Suite for Transcriptomics and Biological Network Analysis
+
+Desenvolvido por Integrantes do EvoMol-Lab no Centro de Biociências - UFRN"
+
+_______________________________________________________________________________________________________________________________________________________________________________________________________
+🌟 **1. Introduction**
+Lumos Networks is a modular Python web application designed to bridge the gap between raw transcriptomic data and systems biology insights. Developed at EvoMol-Lab (UFRN), the suite provides a streamlined workflow for Differential Expression Analysis, Functional Enrichment, and Knowledge-based Network construction.
+
+________________________________________________________________________________________________________________________________________________________________________________________________________
+🛠 **2. The Lumos Suite (Modules)**
+Lumos is organized into three specialized modules, accessible via the sidebar in the multipage application:
+
+<img width="480" height="590" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
+
+📊 *1. DDEA (Differential Differential Expression Analysis)*
+Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq.
+
+Input: Raw count matrices and metadata.
+
+Features: Normalization, dispersion estimation, and Wald tests for differential expression.
+
+Output: Volcano plots, MA plots, and interactive result tables.
+
+<img width="2760" height="1504" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
+
+🧬 *2. APP (Analysis of Pathways & Processes)*
+A functional enrichment module using GSEApy.
+
+Features: Over-Representation Analysis (ORA) and Gene Set Enrichment Analysis (GSEA).
+
+Databases: Integrated support for KEGG, Gene Ontology (GO), and Reactome.
+
+<img width="1380" height="752" alt="PrioriGraph (PG)" src="https://github.com/user-attachments/assets/6472fbaf-05ed-46da-a9a7-0e80188883ec" />
+
+🕸 *3. PrioriGraph (Network Biology)*
+Our flagship tool for building networks based on prior biological knowledge.
+
+Features: Integration of DEGs into interaction networks.
+
+Metrics: Identification of hub genes through degree and centrality analysis.
+
+Visualization: High-performance interactive graph rendering.
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________
+⚙ **3. Installation & Local Execution**
+
+Bash
+
+# Clone the repository
+git clone https://github.com/evomol-lab/lumos-networks.git
+cd lumos-networks
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+streamlit run Lumos_Home.py
+
+_________________________________________________________________________________________________________________________________________________________________________________________________________
+📄 **4. Core Requirements**
+Lumos relies on the following state-of-the-art libraries:
+
+Statistics: pydeseq2, scipy, statsmodels.
+
+Bioinformatics: gseapy, biopython.
+
+Networks: networkx, streamlit-agraph.
+
+Visualization: plotly, matplotlib, seaborn.
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________
+📁 **5. Project Structure**
+The repository follows the Streamlit Multipage pattern:
+
+Plaintext
+
+lumos-networks/
+├── Lumos_Home.py          # Landing page & Global Config
+├── requirements.txt       # Version-controlled dependencies
+├── pages/                 # Module directory
+│   ├── 1_DDEA.py          # Differential Expression logic
+│   ├── 2_APP.py           # Enrichment Analysis logic
+│   └── 3_PrioriGraph.py   # Network construction logic
+└── assets/                # Logos and documentation images
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________
+🤝 **6. Credits & Support**
+The Lumos Networks suite is an ongoing collaborative effort developed at the EvoMol-Lab (Laboratory of Molecular Evolution and Bioinformatics), part of the Bioinformatics Multidisciplinary Environment (BioME) at the Federal University of Rio Grande do Norte (UFRN), Brazil.
+
+👥 Development Team
+Dr. João Paulo M. S. Lima – Principal Investigator (PI)
+MSc. Laís de Carvalho Gonçalves – PhD Student & Lead Developer
+Djorkaeff Oliveira Fontinele – Master’s Student & Developer
+Rodrigo Arruda Orvate – Master’s Student & Developer
+
+🏛 Institutions & Partners
+UFRN: Universidade Federal do Rio Grande do Norte.
+BioME: Multi-user Bioinformatics Center UFRN.
+EvoMol-Lab: Laboratory of Molecular Evolution and Systems Biology.
+
+💰 Financial Support
+This project is supported by the following Brazilian research agencies:
+CAPES (Coordination for the Improvement of Higher Education Personnel)
+UFRN (Institutional Support)
+
+_______________________________________________________________________________________________________________________________________________________________________________________________________
+⚖ **7. Disclaimer**
+This software is provided for research purposes. The developer team utilized generative AI for UI/UX optimization, PDF reporting architecture, and documentation refinement to ensure the highest code quality and user experience.
+
+_______________________________________________________________________________________________________________________________________________________________________________________________________
+Lumos Networks © 2026 | Natal, RN - Brazil
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+___________________________________________________________________________________________________________________________________________________________________________________________________________
 ## Diagonal Differential Expression Alley (DDEA) 🧬
 
 O **DDEA** é uma plataforma analítica de alta performance desenvolvida para simplificar e elevar o rigor científico na análise de expressão diferencial. A ferramenta automatiza o processamento de dados de **Microarray** e **RNA-Seq** provenientes do **NCBI Gene Expression Omnibus (GEO)**, garantindo resultados prontos para publicação.
