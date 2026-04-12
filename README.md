@@ -1,4 +1,5 @@
-![Lumos Networkss](https://github.com/user-attachments/assets/910c7e5d-dd54-4930-9ae7-6952a5beeaf1)
+<img width="2048" height="1401" alt="Lumos Networks" src="https://github.com/user-attachments/assets/126e70c5-159f-47cd-b2fe-a7533de62d89" />
+
 
 
 
@@ -26,24 +27,24 @@ Lumos is organized into three specialized modules, accessible via the sidebar in
 
 Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq.
 
-Input: Raw count matrices and metadata.
+**Input:** Raw count matrices and metadata.
 
-Features: Normalization, dispersion estimation, and Wald tests for differential expression.
+**Features:** Normalization, dispersion estimation, and Wald tests for differential expression.
 
-Output: Volcano plots, MA plots, and interactive result tables.
+**Output:** Volcano plots, MA plots, and interactive result tables.
 
 
 <img width="2760" height="1504" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
 
 
 
-🧬 **b. APP (Analysis of Pathways & Processes)**
+🧬 **b. APP (Arithmancy Pathway Profiler)**
 
 A functional enrichment module using GSEApy.
 
-Features: Gene Set Enrichment Analysis (GSEA).
+**Features:** Gene Set Enrichment Analysis (GSEA).
 
-Databases: Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
+**Databases:** Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
 ![PrioriGraph(PG)](https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f)
@@ -54,11 +55,11 @@ Databases: Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRR
 
 Our flagship tool for building networks based on prior biological knowledge.
 
-Features: Integration of DEGs and transcription factors in interaction networks.
+**Features:** Integration of DEGs and transcription factors in interaction networks.
 
-Metrics: Identification of core genes and transcription factors through in-degree/out-degree and centrality analysis..
+**Metrics:** Identification of core genes and transcription factors through in-degree/out-degree and centrality analysis..
 
-Visualization: High-performance interactive graph rendering.
+**Visualization:** High-performance interactive graph rendering.
 
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 ⚙ **3. Installation & Local Execution**
@@ -87,13 +88,13 @@ ________________________________________________________________________________
 
 Lumos relies on the following state-of-the-art libraries:
 
-Statistics: pydeseq2, scipy, statsmodels.
+**Statistics:** pydeseq2, scipy, statsmodels.
 
-Bioinformatics: gseapy, biopython.
+**Bioinformatics:** gseapy, biopython.
 
-Networks: networkx, streamlit-agraph.
+**Networks:** networkx, streamlit-agraph.
 
-Visualization: plotly, matplotlib, seaborn.
+**Visualization:** plotly, matplotlib, seaborn.
 
 __________________________________________________________________________________________________________________________________________________________________________________________________________
 📁 **5. Project Structure**
@@ -118,7 +119,7 @@ ________________________________________________________________________________
 
 The Lumos Networks suite is an ongoing collaborative effort developed at the EvoMol-Lab (Laboratory of Molecular Evolution and Bioinformatics), part of the Bioinformatics Multidisciplinary Environment (BioME) at the Federal University of Rio Grande do Norte (UFRN), Brazil.
 
-👥 Development Team
+👥 **Development Team**
 
 Dr. João Paulo M. S. Lima – Principal Investigator (PI)
 
@@ -129,7 +130,7 @@ Djorkaeff Oliveira Fontinele – Master’s Student & Developer
 Rodrigo Arruda Orvate – Master’s Student & Developer
 
 
-🏛 Institutions & Partners
+🏛 **Institutions & Partners**
 
 UFRN: Universidade Federal do Rio Grande do Norte.
 
@@ -138,7 +139,7 @@ BioME: Multi-user Bioinformatics Center UFRN.
 EvoMol-Lab: Laboratory of Molecular Evolution and Systems Biology.
 
 
-💰 Financial Support
+💰 **Financial Support**
 
 This project is supported by the following Brazilian research agencies:
 
@@ -155,7 +156,7 @@ ________________________________________________________________________________
 ### Contato
 Dúvidas ou sugestões? [bioinfo.imd.ufrn.br](http://bioinfo.imd.ufrn.br).
 _______________________________________________________________________________________________________________________________________________________________________________________________________
-Lumos Networks © 2026 | Natal, RN - Brazil
+**Lumos Networks** © 2026 | Natal, RN - Brazil
 
 
 
