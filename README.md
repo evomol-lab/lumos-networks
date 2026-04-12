@@ -7,10 +7,12 @@ Desenvolvido por Integrantes do EvoMol-Lab no Centro de Biociências - UFRN"
 
 _______________________________________________________________________________________________________________________________________________________________________________________________________
 🌟 **1. Introduction**
+
 Lumos Networks is a modular Python web application designed to bridge the gap between raw transcriptomic data and systems biology insights. Developed at EvoMol-Lab (UFRN), the suite provides a streamlined workflow for Differential Expression Analysis, Functional Enrichment, and Knowledge-based Network construction.
 
 ________________________________________________________________________________________________________________________________________________________________________________________________________
 🛠 **2. The Lumos Suite (Modules)**
+
 Lumos is organized into three specialized modules, accessible via the sidebar in the multipage application:
 
 <img width="480" height="590" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
