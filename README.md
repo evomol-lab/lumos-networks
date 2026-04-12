@@ -53,7 +53,7 @@ ________________________________________________________________________________
 ⚙ **3. Installation & Local Execution**
 
 ```Bash
-
+Bash
 # Clone the repository
 git clone https://github.com/evomol-lab/lumos-networks.git
 cd lumos-networks
