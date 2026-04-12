@@ -10,7 +10,7 @@ st.set_page_config(
 
 # --- 1. LOGO NA BARRA LATERAL ---
 with st.sidebar:
-    logo_lumos = "assets/logo/Lumos Networks.png"
+    logo_lumos = "assets/logos/Lumos Networks.png"
     if os.path.exists(logo_lumos):
         st.image(logo_lumos, use_container_width=True)
     st.divider()
@@ -52,8 +52,8 @@ with col1:
             Focado em rigor estatístico e normalização robusta para Microarray e RNA-Seq.
             """)
         with c2:
-            if os.path.exists("assets/logo/DDEA.png"):
-                st.image("assets/logo/DDEA.png", width=80)
+            if os.path.exists("assets/logos/DDEA.png"):
+                st.image("assets/logos/DDEA.png", width=80)
         
     # --- MÓDULO 2: APP ---
     with st.expander("2. APP (Arithmancy Pathway Profiler)", expanded=False):
@@ -64,8 +64,8 @@ with col1:
             biológicos super-representados usando bases KEGG, GO e JASPAR.
             """)
         with c2:
-            if os.path.exists("assets/logo/Arithmancy Pathway Profiler (APP) .png"):
-                st.image("assets/logo/Arithmancy Pathway Profiler (APP) .png", width=80)
+            if os.path.exists("assets/logos/Arithmancy Pathway Profiler (APP) .png"):
+                st.image("assets/logos/Arithmancy Pathway Profiler (APP) .png", width=80)
 
     # --- MÓDULO 3: PRIORIGRAPH (O QUE FALTAVA) ---
     with st.expander("3. PG (PrioriGraph)", expanded=False):
@@ -76,14 +76,14 @@ with col1:
             Transcrição para identificar hubs regulatórios e comunidades moleculares.
             """)
         with c2:
-            if os.path.exists("assets/logo/PrioriGraph(PG).jpeg"):
-                st.image("assets/logo/PrioriGraph(PG).jpeg", width=80)
+            if os.path.exists("assets/logos/PrioriGraph(PG).jpeg"):
+                st.image("assets/logos/PrioriGraph(PG).jpeg", width=80)
 
 with col2:
     st.info("👈 **Navegação:** Use o menu à esquerda para alternar entre os módulos.")
     
-    if os.path.exists("assets/logo/Lumos Networks.png"):
-        st.image("assets/logo/Lumos Networks.png", use_container_width=True)
+    if os.path.exists("assets/logos/Lumos Networks.png"):
+        st.image("assets/logos/Lumos Networks.png", use_container_width=True)
     
     st.metric(label="Release", value="v1.0.0-Beta")
     
