@@ -76,8 +76,8 @@ with col1:
             Transcrição para identificar hubs regulatórios e comunidades moleculares.
             """)
         with c2:
-            if os.path.exists("assets/logo/PrioriGraph(PG).png"):
-                st.image("assets/logo/PrioriGraph(PG).png", width=80)
+            if os.path.exists("assets/logo/PrioriGraph(PG).jpeg"):
+                st.image("assets/logo/PrioriGraph(PG).jpeg", width=80)
 
 with col2:
     st.info("👈 **Navegação:** Use o menu à esquerda para alternar entre os módulos.")
