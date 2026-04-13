@@ -142,10 +142,18 @@ with st.sidebar:
         
     with st.expander("🕸️ O que é um Gene Hub?"):
         st.caption("""
-        Genes com **alta centralidade** (muitas conexões). 
-        Geralmente são reguladores mestres essenciais para a manutenção do fenótipo biológico.
+        Definido pela **alta conectividade** (grau) em uma rede. 
+        Funciona como um nó central de interações, sendo essencial para a 
+        estabilidade estrutural da rede (proteínas de scaffold, por exemplo).
         """)
 
+    with st.expander("👑 O que é um Regulador Mestre?"):
+        st.caption("""
+        Definido pela **função hierárquica**. Geralmente é um Fator de Transcrição 
+        que orquestra grandes programas genéticos, controlando diretamente 
+        ou indiretamente diversos genes a jusante (*downstream*).
+        """)
+        
     with st.expander("🧪 O que é GSEA?"):
         st.caption("""
         **Gene Set Enrichment Analysis.** Analisa se um conjunto de genes (vias) tende a estar no topo 
