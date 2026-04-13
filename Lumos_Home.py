@@ -22,7 +22,7 @@ if os.path.exists(logo_principal):
 # Em vez de st.title(), usamos st.image() com o texto já formatado.
 # Isso garante que a fonte 'Harry Potter' apareça para TODOS os usuários.
 
-titulo_magico = "assets/logo/titulo_lumos_hp.png" # Imagem que vamos criar
+titulo_magico = "assets/logos/titulo_lumos_hp.png" # Imagem que vamos criar
 
 if os.path.exists(titulo_magico):
     # Centraliza o título gerado
