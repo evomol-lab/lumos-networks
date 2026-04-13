@@ -112,29 +112,51 @@ with col1:
                 st.image("assets/logos/PrioriGraph(PG).jpeg", width=80)
 
 with col2:
+    # Este card de informação fica no corpo principal (Home)
     st.info("👈 **Navegação:** Use o menu à esquerda para alternar entre os módulos.")
     
-    with st.sidebar:
+    # Métrica de Release para destaque na Home
+    st.metric(label="Release", value="v1.0.0-Beta")
+    
+    st.markdown("### Apoio Institucional")
+    st.write("🔬 **EvoMol-Lab**")
+    st.write("🎓 **BioME - UFRN**")
+
+# --- ORGANIZAÇÃO DA SIDEBAR (BARRA LATERAL) ---
+with st.sidebar:
     st.markdown("### 🧠 Guia Rápido de Conceitos")
     st.divider()
     
-    # Dica dinâmica (Exemplo para a Home)
+    # Dica dinâmica
     st.info("💡 **Lumos Tip:** Comece sua jornada pelo módulo **DDEA** para identificar os genes com expressão diferencial estatisticamente significativa.")
 
-    # Glossário Compacto
+    # Glossário Compacto - Útil para consulta rápida durante o uso
     with st.expander("🔎 O que é FDR (P-adj)?"):
-        st.caption("Falsa Taxa de Descoberta. Corrige p-values para múltiplos testes, reduzindo falsos positivos.")
+        st.caption("""
+        **Falsa Taxa de Descoberta.** Corrige o valor de p para múltiplos testes. 
+        Em bioinformática, evita que identifiquemos genes como diferenciais por puro acaso.
+        """)
         
     with st.expander("🕸️ O que é um Gene Hub?"):
-        st.caption("Gene altamente conectado em uma rede biológica, crucial para a estabilidade do sistema.")
+        st.caption("""
+        Genes com **alta centralidade** (muitas conexões). 
+        Geralmente são reguladores mestres essenciais para a manutenção do fenótipo biológico.
+        """)
+
+    with st.expander("🧪 O que é GSEA?"):
+        st.caption("""
+        **Gene Set Enrichment Analysis.** Analisa se um conjunto de genes (vias) tende a estar no topo 
+        ou no fundo de uma lista ranqueada, sem precisar de um corte fixo de P-value.
+        """)
 
     st.divider()
     
     st.metric(label="Release", value="v1.0.0-Beta")
     
     st.markdown("### Apoio Institucional")
-    st.write("🔬 **EvoMol-Lab**")
-    st.write("🎓 **BioME - UFRN**")
+    st.write("🔬 **EvoMol-Lab** e 🎓 **BioME - UFRN**")
+    st.markdown("### Development Team")
+    st.write("Dr. João Paulo M. S. Lima; MSc. Laís de Carvalho Gonçalves; Rodrigo Arruda Orvate")
 
 st.divider()
 
