@@ -60,7 +60,11 @@ with col1:
         c1, c2 = st.columns([4, 1])
         with c1:
             st.markdown("""
-            Integração multidimensional com bases KEGG, GO, STRING e circuitos regulatórios (TFs).
+            realiza a contextualização funcional do transcriptoma através da integração multidimensional com bases de 
+            dados globais como KEGG, GO e STRING. O módulo utiliza algoritmos de sobre-representação (ORA) e GSEA para 
+            converter listas de genes em cascatas bioquímicas e complexos de interação proteína-proteína (PPI). 
+            Seu diferencial estratégico reside no mapeamento de circuitos regulatórios via JASPAR/TRRUST, permitindo a 
+            identificação dos fatores de transcrição que atuam como reguladores mestres do sistema biológico estudado.
             """)
         with c2:
             if os.path.exists("assets/logos/Arithmancy Pathway Profiler (APP) .png"):
@@ -71,8 +75,10 @@ with col1:
         c1, c2 = st.columns([4, 1])
         with c1:
             st.markdown("""
-            **Modelagem de Redes de Biologia de Sistemas.** Constrói grafos de interação baseados em conhecimento prévio, integrando DEGs e Fatores de 
-            Transcrição para identificar hubs regulatórios e comunidades moleculares.
+            **Modelagem de Redes de Biologia de Sistemas.** Realiza a modelagem topológica de sistemas 
+            biológicos através da construção de redes direcionadas. Ao integrar fatores de transcrição aos 
+            seus genes alvos, o módulo aplica métricas de centralidade para priorizar hubs regulatórios 
+            e detectar módulos funcionais conservados.
             """)
         with c2:
             if os.path.exists("assets/logos/PrioriGraph(PG).jpeg"):
