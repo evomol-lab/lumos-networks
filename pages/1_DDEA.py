@@ -18,8 +18,6 @@ import statsmodels.api as sm
 from statsmodels.stats.multitest import fdrcorrection
 import itertools
 from sklearn.decomposition import PCA
-import plotly.io as pio
-pio.renderers.default = "svg"
 
 # Impede erros de importação se as bibliotecas não estiverem presentes
 try:
@@ -607,7 +605,7 @@ def run_app():
         t1, t2, t3, t4 = st.tabs(["📊 Volcano & PCA", "🔝 Top DEGs", "🔥 Heatmap", "📋 Data Table"])
 
         with t1:
-            fig_v = px.scatter(res, x='Log2FC', y='-log10(FDR)', color='Status', color_discrete_map={'Not Significant': 'lightgrey', 'Up-regulated': 'red', 'Down-regulated': 'blue'}, hover_name='Symbol',render_mode='svg')
+            fig_v = px.scatter(res, x='Log2FC', y='-log10(FDR)', color='Status', color_discrete_map={'Not Significant': 'lightgrey', 'Up-regulated': 'red', 'Down-regulated': 'blue'}, hover_name='Symbol')
             fig_v.add_vline(x=fc_thr, line_dash="dash"); fig_v.add_vline(x=-fc_thr, line_dash="dash")
             fig_v.add_hline(y=-np.log10(p_thr), line_dash="dash")
             st.session_state['fig_v'] = fig_v.update_layout(template="simple_white", height=500)
