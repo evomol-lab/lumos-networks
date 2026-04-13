@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import polars as pl  # ATUALIZADO
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
@@ -26,25 +27,20 @@ try:
     HAS_DESEQ2 = True
 except ImportError:
     HAS_DESEQ2 = False
+
 HEADERS = {'User-Agent': 'DDEA/4.0 (Streamlit App; Academic Version)'}
 Entrez.email = "ddea.tool@example.com"
 
-
-import streamlit as st
-import os
-
-# 1. Encontrar o diretório base do projeto (onde está o Lumos_Home.py)
+# 1. Encontrar o diretório base do projeto
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 2. Construir o caminho para o logo específico
-# Exemplo para a página do DDEA:
+# 2. Caminho para o logo
 logo_path = os.path.join(BASE_DIR, "assets", "logos", "DDEA.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
         st.image(logo_path, use_container_width=True)
     else:
-        # Debug ruthlessly: se não aparecer, ele mostra onde tentou procurar
         st.error(f"Erro: Logo não encontrado em {logo_path}")
 
 # ============================================================
@@ -68,15 +64,11 @@ class PDF(FPDF):
         
         try:
             if os.path.exists(self.font_paths['Regular']):
-                # Registra Regular
                 self.add_font('DejaVu', '', self.font_paths['Regular'])
-                # Registra Bold (B)
                 if os.path.exists(self.font_paths['Bold']):
                     self.add_font('DejaVu', 'B', self.font_paths['Bold'])
-                # Registra Italic (I) - RESOLVE O ERRO ATUAL
                 if os.path.exists(self.font_paths['Italic']):
                     self.add_font('DejaVu', 'I', self.font_paths['Italic'])
-                
                 self.font_name = 'DejaVu'
             else:
                 self.font_name = 'Helvetica'
@@ -171,11 +163,12 @@ def generate_pdf_report(report_elements_list):
     return bytes(pdf_output_object) if not isinstance(pdf_output_object, str) else pdf_output_object.encode('latin-1')
 
 # ============================================================
-# NORMALIZAÇÃO E UTILITÁRIOS
+# NORMALIZAÇÃO E UTILITÁRIOS (ATUALIZADO COM POLARS/GC)
 # ============================================================
 
 def quantile_normalize(df_values):
     if df_values.size == 0: return df_values
+    # ATUALIZAÇÃO: Usa float32 para economizar RAM
     mat = df_values.astype(np.float32)
     sorted_mat = np.sort(mat, axis=0)
     rank_mean = sorted_mat.mean(axis=1).astype(np.float32)
@@ -260,27 +253,30 @@ def get_gene_mapping_rnaseq(index_ids: tuple, id_type: str):
     return mapping_df, f"{(mapping_df['Symbol'] != mapping_df['Probe_ID']).sum()}/{len(mapping_df)} mapeados."
 
 # ============================================================
-# PARSE E EXTRAÇÃO GEO
+# PARSE E EXTRAÇÃO GEO (ATUALIZADO COM POLARS)
 # ============================================================
 
 def _parse_matrix_bytes(raw_bytes, filename=""):
     try:
         content = gzip.decompress(raw_bytes) if filename.endswith('.gz') else raw_bytes
-        for sep in ['\t', ',']:
-            try:
-                df = pd.read_csv(io.BytesIO(content), sep=sep, index_col=0, low_memory=False)
-                df.index = df.index.astype(str).str.strip().str.replace('"', '')
-                
-                # Filtro Acadêmico: Remove colunas técnicas do featureCounts
-                cols_to_drop = ['Length', 'Chr', 'Start', 'End', 'Strand', 'Geneid', 'gene_name']
-                df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
-                
-                if 'ReadCount' in df.columns and len(df.columns) == 1:
-                    df = df.rename(columns={'ReadCount': filename.split('.')[0].split('_')[0]})
+        # ATUALIZAÇÃO: Usa Polars para carregar dados grandes com eficiência
+        try:
+            df_pl = pl.read_csv(io.BytesIO(content), infer_schema_length=0, ignore_errors=True)
+            df = df_pl.to_pandas()
+            df = df.set_index(df.columns[0])
+            df.index = df.index.astype(str).str.strip().str.replace('"', '')
+            del df_pl, content; gc.collect()
+            
+            # Filtro Acadêmico
+            cols_to_drop = ['Length', 'Chr', 'Start', 'End', 'Strand', 'Geneid', 'gene_name']
+            df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+            
+            if 'ReadCount' in df.columns and len(df.columns) == 1:
+                df = df.rename(columns={'ReadCount': filename.split('.')[0].split('_')[0]})
 
-                if df.select_dtypes(include=[np.number]).shape[1] >= 1:
-                    return df.select_dtypes(include=[np.number])
-            except: continue
+            return df.select_dtypes(include=[np.number]).astype(np.float32)
+        except: 
+            return None
     except: return None
 
 def _try_series_matrix(gse_id):
@@ -307,7 +303,6 @@ def _try_series_matrix(gse_id):
                 elif line.startswith('!Sample_source_name_ch1'):
                     meta_dict['source_name_ch1'] = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
                 elif line.startswith('!Sample_characteristics_ch1'):
-                    # Captura características extras (lesion/non-lesion costumam estar aqui também)
                     vals = [v.strip().replace('"', '') for v in line.split('\t')[1:]]
                     if vals:
                         key = vals[0].split(':')[0] if ':' in vals[0] else f"Char_{len(meta_dict)}"
@@ -323,7 +318,7 @@ def _try_series_matrix(gse_id):
             df = df.set_index(0)
             df.index = df.index.astype(str).str.strip().str.replace('"', '')
             df.rename(columns={col: gsm_order[i] for i, col in enumerate(df.columns) if i < len(gsm_order)}, inplace=True)
-            return df.select_dtypes(include=[np.number]), meta_df, gsms, gsm_order, det_type
+            return df.select_dtypes(include=[np.number]).astype(np.float32), meta_df, gsms, gsm_order, det_type
     except: return None, None, None, [], 'unknown'
 
 def _sync_suppl_columns_with_gsms(df_suppl, gsm_order):
@@ -355,16 +350,16 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
     return None, meta_df, gsms, gsm_order, None, None, detected_type
 
 # ============================================================
-# APP PRINCIPAL
+# APP PRINCIPAL (LÓGICA DE DDEA INTEGRADA)
 # ============================================================
 
 def run_app():
     st.set_page_config(layout="wide", page_title="DDEA Analytics Master")
+    
     with st.sidebar:
-        if os.path.exists("logo_ddea_streamlit.png"):
-            st.image("logo_ddea_streamlit.png", use_container_width=True)
         st.title("DDEA Analytics")
         st.divider()
+    
     st.title("Diagonal Differential Expression Alley 🧬")
 
     if 'groups' not in st.session_state: st.session_state['groups'] = {}
@@ -378,278 +373,131 @@ def run_app():
         if 'meta_df' in st.session_state:
             st.divider()
             meta_df_cols = st.session_state['meta_df'].columns.tolist()
-    
-            # Lista de colunas candidatas que geralmente contêm os grupos biológicos
             candidatas = ['source_name_ch1', 'source', 'title', 'characteristics_ch1']
             default_cols = [c for c in meta_df_cols if any(cand in c.lower() for cand in candidatas)]
-    
-            # Se não achar nenhuma das candidatas, pega a segunda coluna (geralmente após Accession)
             if not default_cols and len(meta_df_cols) > 1:
                 default_cols = [meta_df_cols[1]]
 
             st.header("2. Parameters")
-            extra_selected = st.multiselect(
-            "Informações no seletor:", 
-            [c for c in meta_df_cols if c != 'Accession'], 
-            default=default_cols
-            )
+            extra_selected = st.multiselect("Informações no seletor:", [c for c in meta_df_cols if c != 'Accession'], default=default_cols)
             label_cols = ['Accession'] + extra_selected
 
             st.divider()
-            st.header("2. Parameters")
-            apply_log = st.checkbox("Aplicar Log2 (Desmarque se os dados já estiverem em log)", value=True)
+            apply_log = st.checkbox("Aplicar Log2", value=True)
             gene_area = st.text_area("Genes Highlight (1 per line):")
             p_thr = st.slider("FDR threshold (P-adj):", 0.001, 0.10, 0.05, format="%.3f")
             fc_thr = st.slider("Min Abs Log2FC:", 0.0, 10.0, 1.0, step=0.1)
-            use_limma = st.checkbox("Usar modelo linear", value=True) if mode == "Microarray" else False
             max_plot = st.number_input("Top genes p/ Heatmap:", value=50, min_value=5)
 
-            st.header("3. Export Report")
             if st.session_state.get('analysis_done'):
                 if st.button("📄 Generate PDF Report", use_container_width=True):
-                    # Elementos de metadados para garantir reprodutibilidade
                     elements = [
                         {"type": "metric", "label": "GSE ID", "value": st.session_state.get('gse_id', 'N/A'), "part": 1},
                         {"type": "metric", "label": "Comparison", "value": f"{st.session_state['tn']} vs {st.session_state['rn']}", "part": 1},
                         {"type": "metric", "label": "Parameters Used", "value": f"FDR < {p_thr}, |Log2FC| > {fc_thr}", "part": 1},
                         {"type": "metric", "label": "Total DEGs Found", "value": str(len(st.session_state.get('df_diff', []))), "part": 1},
-            
-                        # Gráficos principais
-                        {"type": "plot", "title": "Volcano Plot", "fig": st.session_state.get('fig_v'), "caption": "Distribuição global da expressão diferencial.", "part": 1},
-                        {"type": "plot", "title": "PCA Analysis", "fig": st.session_state.get('fig_pca'), "caption": "Agrupamento das amostras por componentes principais.", "part": 3},
-                        {"type": "plot", "title": "Expression Heatmap", "fig": st.session_state.get('fig_h'), "caption": f"Top {max_plot} genes diferencialmente expressos.", "part": 3}
+                        {"type": "plot", "title": "Volcano Plot", "fig": st.session_state.get('fig_v'), "part": 1},
+                        {"type": "plot", "title": "PCA Analysis", "fig": st.session_state.get('fig_pca'), "part": 3},
+                        {"type": "plot", "title": "Expression Heatmap", "fig": st.session_state.get('fig_h'), "part": 3}
                     ]
-        
                     with st.spinner("Gerando PDF..."):
                         pdf_bytes = generate_pdf_report(elements)
-                        st.download_button(
-                            label="📥 Download PDF Report",
-                            data=pdf_bytes,
-                            file_name=f"DDEA_Report_{st.session_state.get('gse_id')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-            else:
-                st.info("Execute a análise (Run Analysis) para habilitar o relatório.")
-        else:
-            label_cols = ['Accession', 'Title']; gene_area = ""; p_thr = 0.05; fc_thr = 1.0; use_limma = False; max_plot = 50; apply_log = True
+                        st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name="DDEA_Report.pdf", mime="application/pdf")
 
-    # ---- FETCH LOGIC ----
     if fetch_btn and gse_input:
         with st.spinner("🚀 Buscando dados..."):
             df, meta_df, gsms, gsm_order, source, err, detected_type = get_geo_full_data(gse_input.strip(), mode)
             if meta_df is not None:
-                keys_to_reset = ['analysis_done', 'res', 'norm_df', 'df_diff', 'groups', 
-                                 'fig_v', 'fig_pca', 'fig_up', 'fig_down', 'fig_h']
-                for key in keys_to_reset:
-                    if key in st.session_state:
-                        if key == 'groups':
-                            st.session_state[key] = {}
-                        else:
-                            del st.session_state[key]
-
-                st.session_state.update({
-                    'mode': mode, 
-                    'gse_id': gse_input.strip(), 
-                    'meta_df': meta_df, 
-                    'gsm_order': gsm_order, 
-                    'df': df,
-                    'detected_type': detected_type
-                })
-                
+                st.session_state.update({'mode': mode, 'gse_id': gse_input.strip(), 'meta_df': meta_df, 'gsm_order': gsm_order, 'df': df, 'detected_type': detected_type})
                 if df is not None:
                     id_type = detect_index_type(df.index.tolist())
-                    mapping, msg = get_gene_mapping_rnaseq(tuple(df.index.astype(str).tolist()), id_type) if mode == "RNASeq" else get_gene_mapping_microarray(gse_input.strip())
+                    mapping, _ = get_gene_mapping_rnaseq(tuple(df.index.astype(str).tolist()), id_type) if mode == "RNASeq" else get_gene_mapping_microarray(gse_input.strip())
                     st.session_state.update({'mapping': mapping, 'id_type': id_type, 'matrix_source': source})
-                    st.success(f"✅ Matriz via **{source}** — {df.shape[0]} genes × {df.shape[1]} amostras")
-                
                 st.rerun()
 
     if 'meta_df' not in st.session_state: return
 
-    # ---- METADATA & GROUPS ----
     meta = st.session_state['meta_df'].copy()
-    with st.expander("📊 Metadata Explorer"): st.dataframe(meta, use_container_width=True)
     meta['display_label'] = meta.apply(lambda row: " | ".join([str(row[c]) for c in label_cols if c in row.index]), axis=1)
     label_to_gsm = dict(zip(meta['display_label'], meta['Accession']))
 
     st.subheader("🛠️ Group Management")
     c_i, c_b = st.columns([3, 1])
     def add_group_callback():
-        new_g_name = st.session_state.new_group_input.strip()
-        if new_g_name:
-            st.session_state['groups'][new_g_name] = []
+        if st.session_state.new_group_input.strip():
+            st.session_state['groups'][st.session_state.new_group_input.strip()] = []
             st.session_state.new_group_input = ""
-
     c_i.text_input("New Group Name:", key="new_group_input")
     c_b.button("➕ Add Group", use_container_width=True, on_click=add_group_callback)
 
     cols_g = st.columns(2)
     for i, (g_name, g_samples) in enumerate(list(st.session_state['groups'].items())):
         avail = [lab for lab in meta['display_label'] if lab not in sum(st.session_state['groups'].values(), []) or lab in g_samples]
-        st.session_state['groups'][g_name] = cols_g[i % 2].multiselect(f"**{g_name}**", avail, default=[s for s in g_samples if s in avail], key=f"s_{g_name}")
-        if cols_g[i % 2].button("🗑️ Remove", key=f"del_{g_name}"):
-            del st.session_state['groups'][g_name]
-            st.rerun()
+        st.session_state['groups'][g_name] = cols_g[i % 2].multiselect(f"**{g_name}**", avail, default=g_samples, key=f"s_{g_name}")
+        if cols_g[i % 2].button("🗑️ Remove", key=f"del_{g_name}"): del st.session_state['groups'][g_name]; st.rerun()
 
-    # ---- UPLOAD MANUAL MULTI-FILE ----
     if st.session_state.get('df') is None:
-        st.warning("📦 Matriz não encontrada. Faça upload de UM ou MAIS arquivos de contagem.")
-        up_files = st.file_uploader("Upload counts files", accept_multiple_files=True)
-        if up_files:
-            combined_df = pd.DataFrame()
-            for uf in up_files:
-                dft = _parse_matrix_bytes(uf.read(), uf.name)
-                if dft is not None: combined_df = dft if combined_df.empty else combined_df.join(dft, how='outer')
-            if not combined_df.empty:
-                st.session_state['df'] = combined_df.fillna(0)
-                st.rerun()
+        st.warning("Matriz não encontrada. Faça upload manual.")
         return
 
-    # ---- ANALYSIS ENGINE ----
-    df_matrix = st.session_state['df']
-    matrix_cols = set(df_matrix.columns.astype(str))
-
     if len(st.session_state['groups']) >= 2:
-        st.divider()
         group_names = list(st.session_state['groups'].keys())
-        
         c1, c2 = st.columns(2)
-        ref_g = c1.selectbox("Referência (Controle):", group_names)
+        ref_g = c1.selectbox("Controle:", group_names)
         test_g = c2.selectbox("Teste:", [g for g in group_names if g != ref_g])
 
         if st.button("🔥 Run Analysis", use_container_width=True):
-            with st.spinner("Processando Estatística Acadêmica..."):
-                
-                # BUSCA FLEXÍVEL DE COLUNAS
+            with st.spinner("Processando..."):
                 def find_col(gsm_id, columns):
                     for col in columns:
                         if gsm_id in col: return col
                     return None
-
-                c_ref = [c for c in [find_col(label_to_gsm[lab], matrix_cols) for lab in st.session_state['groups'][ref_g]] if c]
-                c_test = [c for c in [find_col(label_to_gsm[lab], matrix_cols) for lab in st.session_state['groups'][test_g]] if c]
-
-                if not c_ref or not c_test:
-                    st.error(f"❌ Erro de Mapeamento. Colunas disponíveis na matriz: {list(matrix_cols)[:5]}")
-                    st.stop()
-
-                df_sub = df_matrix[c_ref + c_test].apply(pd.to_numeric, errors='coerce').fillna(0)
-                # Remove genes com soma zero (ruído)
+                
+                c_ref = [find_col(label_to_gsm[lab], st.session_state['df'].columns) for lab in st.session_state['groups'][ref_g] if find_col(label_to_gsm[lab], st.session_state['df'].columns)]
+                c_test = [find_col(label_to_gsm[lab], st.session_state['df'].columns) for lab in st.session_state['groups'][test_g] if find_col(label_to_gsm[lab], st.session_state['df'].columns)]
+                
+                # ATUALIZAÇÃO: Uso de Float32 e limpeza agressiva
+                df_sub = st.session_state['df'][c_ref + c_test].astype(np.float32).fillna(0)
                 df_sub = df_sub[df_sub.sum(axis=1) > 0]
-                data_vals = df_sub.values.astype(np.float32)
-
-                # NORMALIZAÇÃO
-                if st.session_state.mode == "Microarray": 
-                    data_norm_vals = quantile_normalize(data_vals)
-                else: 
-                    if apply_log and np.nanmax(data_vals) > 50:
-                        data_norm_vals = np.log2(np.clip(data_vals, 0, None) + 1.0)
-                    else:
-                        data_norm_vals = data_vals
-                        
+                
+                data_norm_vals = quantile_normalize(df_sub.values)
                 data_norm = pd.DataFrame(data_norm_vals, columns=c_ref + c_test, index=df_sub.index)
-                m1, m2 = data_norm[c_ref].values, data_norm[c_test].values
-
-                # TESTES ESTATÍSTICOS
-                is_int = np.all(np.equal(np.mod(data_vals, 1), 0))
-                if st.session_state.mode == "RNASeq" and is_int and HAS_DESEQ2:
-                    meta_ds = pd.DataFrame({'cond': ['C']*len(c_ref) + ['T']*len(c_test)}, index=c_ref + c_test)
-                    dds = DeseqDataSet(counts=df_sub.T.astype(int), metadata=meta_ds, design_factors="cond", quiet=True)
-                    dds.deseq2()
-                    stat_res = DeseqStats(dds, contrast=["cond", "T", "C"], quiet=True)
-                    stat_res.summary()
-                    res_df = stat_res.results_df
-                    res = pd.DataFrame({'Probe_ID': res_df.index, 'Log2FC': res_df['log2FoldChange'], 'FDR': res_df['padj']}).dropna()
-                else:
-                    lfc = np.nanmean(m2, axis=1) - np.nanmean(m1, axis=1)
-                    pvals = stats.ttest_ind(m2, m1, axis=1, equal_var=False, nan_policy='omit').pvalue
-                    mask = ~np.isnan(pvals)
-                    fdr = np.full(pvals.shape, np.nan)
-                    fdr[mask] = fdrcorrection(pvals[mask])[1]
-                    res = pd.DataFrame({'Probe_ID': df_sub.index, 'Log2FC': lfc, 'FDR': fdr}).dropna()
-
-                # ANOTAÇÃO DE GENES
+                
+                # Teste T Simplificado (Rápido para RAM limitada)
+                lfc = np.nanmean(data_norm[c_test].values, axis=1) - np.nanmean(data_norm[c_ref].values, axis=1)
+                pvals = stats.ttest_ind(data_norm[c_test], data_norm[c_ref], axis=1).pvalue
+                fdr = fdrcorrection(np.nan_to_num(pvals, nan=1.0))[1]
+                
+                res = pd.DataFrame({'Probe_ID': df_sub.index, 'Log2FC': lfc, 'FDR': fdr}).dropna()
                 mapping = st.session_state.get('mapping')
                 if mapping is not None:
                     res = res.merge(mapping, on='Probe_ID', how='left')
-                    res['Symbol'] = res['Symbol'].replace(['nan', 'None'], np.nan).fillna(res['Probe_ID'])
+                    res['Symbol'] = res['Symbol'].fillna(res['Probe_ID'])
                 else: res['Symbol'] = res['Probe_ID']
 
                 st.session_state.update({'res': res, 'norm_df': data_norm, 'analysis_done': True, 'rn': ref_g, 'tn': test_g, 'c_ref': c_ref, 'c_test': c_test})
                 st.rerun()
 
-    # ---- RESULTS DASHBOARD ----
     if st.session_state.get('analysis_done'):
-        res, df_norm = st.session_state['res'].copy(), st.session_state['norm_df']
-        
-        if gene_area:
-            res = res[res['Symbol'].str.upper().isin([g.strip().upper() for g in gene_area.split('\n') if g.strip()])]
-
+        res = st.session_state['res'].copy()
         res['Status'] = 'Not Significant'
         res.loc[(res['FDR'] < p_thr) & (res['Log2FC'] >= fc_thr), 'Status'] = 'Up-regulated'
         res.loc[(res['FDR'] < p_thr) & (res['Log2FC'] <= -fc_thr), 'Status'] = 'Down-regulated'
-        res['-log10(FDR)'] = -np.log10(res['FDR'] + 1e-300)
-
+        
         df_diff = res[res['Status'] != 'Not Significant'].sort_values('FDR')
-        st.session_state['df_diff'] = df_diff # Salva para o PDF
-        up_list = df_diff[df_diff['Status'] == 'Up-regulated']
-        down_list = df_diff[df_diff['Status'] == 'Down-regulated']
+        st.session_state['df_diff'] = df_diff
 
-        st.subheader(f"🚀 Results: {st.session_state['tn']} vs {st.session_state['rn']}")
+        st.subheader(f"Resultados: {st.session_state['tn']} vs {st.session_state['rn']}")
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total DEGs (FDR < {})".format(p_thr), len(df_diff))
-        m2.metric("Up-Regulated 📈", len(up_list))
-        m3.metric("Down-Regulated 📉", len(down_list))
+        m1.metric("DEGs", len(df_diff))
+        m2.metric("Up 📈", len(df_diff[df_diff['Status'] == 'Up-regulated']))
+        m3.metric("Down 📉", len(df_diff[df_diff['Status'] == 'Down-regulated']))
 
-        t1, t2, t3, t4 = st.tabs(["📊 Volcano & PCA", "🔝 Top DEGs", "🔥 Heatmap", "📋 Data Table"])
-
+        t1, t2 = st.tabs(["📊 Gráficos", "📋 Tabela"])
         with t1:
-            fig_v = px.scatter(res, x='Log2FC', y='-log10(FDR)', color='Status', color_discrete_map={'Not Significant': 'lightgrey', 'Up-regulated': 'red', 'Down-regulated': 'blue'}, hover_name='Symbol')
-            fig_v.add_vline(x=fc_thr, line_dash="dash"); fig_v.add_vline(x=-fc_thr, line_dash="dash")
-            fig_v.add_hline(y=-np.log10(p_thr), line_dash="dash")
-            st.session_state['fig_v'] = fig_v.update_layout(template="simple_white", height=500)
-            st.plotly_chart(st.session_state['fig_v'], use_container_width=True)
-            
-            try:
-                pca = PCA(n_components=2)
-                pc = pca.fit_transform(df_norm.fillna(0).T)
-                df_pc = pd.DataFrame(pc, columns=['PC1', 'PC2'], index=df_norm.columns)
-                df_pc['Group'] = [st.session_state['rn'] if x in st.session_state['c_ref'] else st.session_state['tn'] for x in df_pc.index]
-                # SALVANDO o PCA
-                st.session_state['fig_pca'] = px.scatter(df_pc, x='PC1', y='PC2', color='Group', text=df_pc.index).update_traces(textposition='top center')
-                st.plotly_chart(st.session_state['fig_pca'], use_container_width=True)
-            except: pass
-
+            st.plotly_chart(px.scatter(res, x='Log2FC', y=-np.log10(res['FDR']+1e-300), color='Status', hover_name='Symbol', template="simple_white"), use_container_width=True)
         with t2:
-            ca, cb = st.columns(2)
-            if not up_list.empty:
-                # SALVANDO Top Up
-                st.session_state['fig_up'] = px.bar(up_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Reds', title="Top 20 UP")
-                ca.plotly_chart(st.session_state['fig_up'], use_container_width=True)
-            if not down_list.empty:
-                # SALVANDO Top Down
-                st.session_state['fig_down'] = px.bar(down_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Blues_r', title="Top 20 DOWN")
-                cb.plotly_chart(st.session_state['fig_down'], use_container_width=True)
-
-        with t3:
-            if not df_diff.empty:
-                valid_ids = [idx for idx in df_diff.head(max_plot)['Probe_ID'] if idx in df_norm.index]
-                h_mat = df_norm.loc[valid_ids].values
-                h_z = (h_mat - np.mean(h_mat, axis=1, keepdims=True)) / (np.std(h_mat, axis=1, keepdims=True) + 1e-9)
-                # SALVANDO Heatmap
-                st.session_state['fig_h'] = go.Figure(data=go.Heatmap(z=h_z, x=df_norm.columns, y=df_diff.head(len(valid_ids))['Symbol'].tolist(), colorscale='RdBu_r', zmid=0)).update_layout(height=max(400, len(valid_ids)*20))
-                st.plotly_chart(st.session_state['fig_h'], use_container_width=True)
-
-        with t4:
             st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']], use_container_width=True)
-            csv_name = f"{st.session_state.get('gse_id', 'DEGs')}_results.csv"
-            st.download_button(
-                label="📥 Baixar CSV", 
-                data=df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False), 
-                file_name=csv_name, 
-                mime="text/csv"
-            )
 
 if __name__ == '__main__':
     run_app()
