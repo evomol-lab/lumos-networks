@@ -94,8 +94,8 @@ with col1:
             identificação dos fatores de transcrição que atuam como reguladores mestres do sistema biológico estudado.
             """)
         with c2:
-            if os.path.exists("assets/logos/Arithmancy Pathway Profiler (APP) .png"):
-                st.image("assets/logos/Arithmancy Pathway Profiler (APP) .png", width=80)
+            if os.path.exists("assets/logos/APP.png"):
+                st.image("assets/logos/APP.png", width=80)
 
     # --- MÓDULO 3: PRIORIGRAPH (O QUE FALTAVA) ---
     with st.expander("3. PG (PrioriGraph)", expanded=False):
@@ -108,8 +108,8 @@ with col1:
             e detectar módulos funcionais conservados.
             """)
         with c2:
-            if os.path.exists("assets/logos/PrioriGraph(PG).jpeg"):
-                st.image("assets/logos/PrioriGraph(PG).jpeg", width=80)
+            if os.path.exists("assets/logos/PG.png"):
+                st.image("assets/logos/PG.png", width=80)
 
 with col2:
     # Este card de informação fica no corpo principal (Home)
