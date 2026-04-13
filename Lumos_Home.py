@@ -11,7 +11,7 @@ st.set_page_config(
 # --- NOVO CABEÇALHO MÁGICO ---
 
 # 1. Centralizar o Logo Principal (Opcional, mas fica lindo)
-logo_principal = "assets/logo/logo_lumos_grandao.png" # Se tiver um logo grande, use aqui
+logo_principal = "assets/logos/Lumos Networks.png" # Se tiver um logo grande, use aqui
 if os.path.exists(logo_principal):
     # Usamos colunas para centralizar a imagem
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
