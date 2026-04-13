@@ -120,7 +120,7 @@ with col2:
     
     st.markdown("### Apoio Institucional")
     st.write("🔬 **EvoMol-Lab** e 🎓 **BioME - UFRN**")
-    st.markdown("### Development Team")
+    st.markdown("### Equipe de Desenvolvimento")
     st.write("Dr. João Paulo M. S. Lima; MSc. Laís de Carvalho Gonçalves; Rodrigo Arruda Orvate")
 
 st.divider()
