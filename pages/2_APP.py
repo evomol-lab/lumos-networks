@@ -16,7 +16,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 2. Construir o caminho para o logo específico
 # Exemplo para a página do DDEA:
-logo_path = os.path.join(BASE_DIR, "assets", "logos", "Arithmancy Pathway Profiler (APP) .png")
+logo_path = os.path.join(BASE_DIR, "assets", "logos", "APP.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
