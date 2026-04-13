@@ -60,7 +60,7 @@ with col1:
         c1, c2 = st.columns([4, 1])
         with c1:
             st.markdown("""
-            realiza a contextualização funcional do transcriptoma através da integração multidimensional com bases de 
+            Realiza a contextualização funcional do transcriptoma através da integração multidimensional com bases de 
             dados globais como KEGG, GO e STRING. O módulo utiliza algoritmos de sobre-representação (ORA) e GSEA para 
             converter listas de genes em cascatas bioquímicas e complexos de interação proteína-proteína (PPI). 
             Seu diferencial estratégico reside no mapeamento de circuitos regulatórios via JASPAR/TRRUST, permitindo a 
