@@ -114,8 +114,21 @@ with col1:
 with col2:
     st.info("👈 **Navegação:** Use o menu à esquerda para alternar entre os módulos.")
     
-    if os.path.exists("assets/logos/Lumos Networks.png"):
-        st.image("assets/logos/Lumos Networks.png", use_container_width=True)
+    with st.sidebar:
+    st.markdown("### 🧠 Guia Rápido de Conceitos")
+    st.divider()
+    
+    # Dica dinâmica (Exemplo para a Home)
+    st.info("💡 **Lumos Tip:** Comece sua jornada pelo módulo **DDEA** para identificar os genes com expressão diferencial estatisticamente significativa.")
+
+    # Glossário Compacto
+    with st.expander("🔎 O que é FDR (P-adj)?"):
+        st.caption("Falsa Taxa de Descoberta. Corrige p-values para múltiplos testes, reduzindo falsos positivos.")
+        
+    with st.expander("🕸️ O que é um Gene Hub?"):
+        st.caption("Gene altamente conectado em uma rede biológica, crucial para a estabilidade do sistema.")
+
+    st.divider()
     
     st.metric(label="Release", value="v1.0.0-Beta")
     
