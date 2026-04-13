@@ -8,6 +8,36 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- NOVO CABEÇALHO MÁGICO ---
+
+# 1. Centralizar o Logo Principal (Opcional, mas fica lindo)
+logo_principal = "assets/logo/logo_lumos_grandao.png" # Se tiver um logo grande, use aqui
+if os.path.exists(logo_principal):
+    # Usamos colunas para centralizar a imagem
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.image(logo_principal, use_container_width=True)
+
+# 2. O Título em Letras Clássicas (A Mágica acontece aqui)
+# Em vez de st.title(), usamos st.image() com o texto já formatado.
+# Isso garante que a fonte 'Harry Potter' apareça para TODOS os usuários.
+
+titulo_magico = "assets/logo/titulo_lumos_hp.png" # Imagem que vamos criar
+
+if os.path.exists(titulo_magico):
+    # Centraliza o título gerado
+    st.image(titulo_magico, use_container_width=True)
+else:
+    # Caso a imagem não exista (fallback), exibe o texto normal bem grande
+    st.markdown("<h1 style='text-align: center; font-size: 50px; color: #E1AF12;'>LUMOS NETWORKS</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #5D6D7E;'>Systems Biology Suite</h3>", unsafe_allow_html=True)
+
+# Subtítulo (opcional, já que está no título da imagem)
+# st.markdown('<p class="subtitle">Sistemas de Análise Integrada: Transcriptômica e Redes</p>', unsafe_allow_html=True)
+
+st.divider()
+
+
 # --- 1. LOGO NA BARRA LATERAL ---
 with st.sidebar:
     logo_lumos = "assets/logos/Lumos Networks.png"
