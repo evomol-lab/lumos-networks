@@ -119,8 +119,11 @@ with col2:
     st.metric(label="Release", value="v1.0.0-Beta")
     
     st.markdown("### Apoio Institucional")
-    st.write("🔬 **EvoMol-Lab**")
-    st.write("🎓 **BioME - UFRN**")
+    st.write("🔬 **EvoMol-Lab** e 🎓 **BioME - UFRN**")
+    st.markdown("### Development Team")
+    st.write("Dr. João Paulo M. S. Lima; MSc. Laís de Carvalho Gonçalves; Rodrigo Arruda Orvate")
+
+st.divider()
 
 # --- ORGANIZAÇÃO DA SIDEBAR (BARRA LATERAL) ---
 with st.sidebar:
@@ -150,15 +153,6 @@ with st.sidebar:
         """)
 
     st.divider()
-    
-    st.metric(label="Release", value="v1.0.0-Beta")
-    
-    st.markdown("### Apoio Institucional")
-    st.write("🔬 **EvoMol-Lab** e 🎓 **BioME - UFRN**")
-    st.markdown("### Development Team")
-    st.write("Dr. João Paulo M. S. Lima; MSc. Laís de Carvalho Gonçalves; Rodrigo Arruda Orvate")
-
-st.divider()
 
 # Rodapé centralizado e sem nomes individuais (conforme solicitado)
 footer_html = """
