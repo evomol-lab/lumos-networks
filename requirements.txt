@@ -1,31 +1,16 @@
-# ============================================================
-# LUMOS NETWORKS - REQUIREMENTS (EvoMol-Lab)
-# ============================================================
-
-# Essenciais para a Interface e Deploy
-streamlit==1.32.0
-
-# Manipulação de Dados e Estatística
+streamlit>=1.32.0
+pandas>=1.5.3
 polars>=0.20.0
 numpy<2.0.0
-pandas>=1.5.3
 scipy
-statsmodels
-scikit-learn
-
-# Bioinformática e Sistemas (Motores de Análise)
+plotly
+kaleido==0.1.0post1
 pydeseq2==0.4.4
 gseapy>=1.0.4
 biopython
 networkx
-
-# Visualização Interativa
-plotly
-kaleido==0.1.0post1
+statsmodels
+scikit-learn
 streamlit-agraph==0.0.45
-
-# Exportação de Relatórios e PDF
 fpdf2
-
-# Utilidades e Comunicação de API
 requests
