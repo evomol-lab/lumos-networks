@@ -33,7 +33,8 @@ else:
     st.markdown("<h3 style='text-align: center; color: #5D6D7E;'>Systems Biology Suite</h3>", unsafe_allow_html=True)
 
 # Subtítulo (opcional, já que está no título da imagem)
-# st.markdown('<p class="subtitle">Sistemas de Análise Integrada: Transcriptômica e Redes</p>', unsafe_allow_html=True)
+# st.markdown('<p class="main-title">LUMOS NETWORKS: Systems Biology Suite </p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Sistemas de Análise Integrada: Transcriptômica e Redes</p>', unsafe_allow_html=True)
 
 st.divider()
 
@@ -54,10 +55,6 @@ st.markdown("""
     .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
-
-# Cabeçalho Principal
-st.markdown('<p class="main-title">LUMOS NETWORKS: Systems Biology Suite </p>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Sistemas de Análise Integrada: Transcriptômica e Redes</p>', unsafe_allow_html=True)
 
 st.divider()
 
