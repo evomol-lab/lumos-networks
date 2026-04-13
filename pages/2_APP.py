@@ -1,28 +1,26 @@
 import streamlit as st
 import pandas as pd
+import polars as pl  # ADICIONADO
 import numpy as np
 import plotly.express as px
 import gseapy as gp
 import requests
+import os
+import gc  # ADICIONADO para gestão de memória
 from streamlit_agraph import agraph, Node, Edge, Config
 
 st.set_page_config(layout="wide", page_title="Arithmancy Pathway Profiler")
 
-import streamlit as st
-import os
-
-# 1. Encontrar o diretório base do projeto (onde está o Lumos_Home.py)
+# 1. Encontrar o diretório base do projeto
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 2. Construir o caminho para o logo específico
-# Exemplo para a página do DDEA:
 logo_path = os.path.join(BASE_DIR, "assets", "logos", "APP.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
         st.image(logo_path, use_container_width=True)
     else:
-        # Debug ruthlessly: se não aparecer, ele mostra onde tentou procurar
         st.error(f"Erro: Logo não encontrado em {logo_path}")
 
 # ============================================================
@@ -48,6 +46,7 @@ def fetch_string_network(genes, confidence=400, max_nodes=150):
         url = "https://version-12-0.string-db.org/api/json/network"
         params = {"identifiers": "\r".join(genes[:max_nodes]), "species": 9606, "required_score": confidence}
         resp = requests.post(url, data=params, timeout=30)
+        # Polars lida melhor com JSONs grandes se necessário, mas aqui mantemos compatibilidade
         return pd.DataFrame(resp.json()) if resp.status_code == 200 else pd.DataFrame()
     except: return pd.DataFrame()
 
@@ -72,14 +71,29 @@ with st.sidebar:
     g_height = st.slider("Altura da Rede:", 400, 1200, 800, 50)
 
 if uploaded_files:
-    all_dfs = [pd.read_csv(f) for f in uploaded_files]
-    df_full = pd.concat(all_dfs)
-    raw_symbols = df_full['Symbol'].dropna().astype(str).str.strip().str.upper().tolist()
+    # ATUALIZAÇÃO: Leitura rápida com Polars e concatenação eficiente
+    all_dfs_pl = [pl.read_csv(f) for f in uploaded_files]
+    df_full_pl = pl.concat(all_dfs_pl)
+    
+    # Extração de símbolos rápida
+    raw_symbols = df_full_pl['Symbol'].drop_nulls().to_list()
+    raw_symbols = [str(s).strip().upper() for s in raw_symbols]
     unique_symbols = sorted(list(set(raw_symbols)))
     
-    df_sig = df_full[(df_full['FDR'] < fdr_cut) & (df_full['Log2FC'].abs() >= fc_cut)].copy()
-    genes_up = set(df_sig[df_sig['Log2FC'] > 0]['Symbol'].str.upper())
-    genes_down = set(df_sig[df_sig['Log2FC'] < 0]['Symbol'].str.upper())
+    # Filtragem para genes significativos (usando Polars para performance)
+    df_sig_pl = df_full_pl.filter(
+        (pl.col("FDR") < fdr_cut) & 
+        (pl.col("Log2FC").abs() >= fc_cut)
+    )
+    
+    # Conversão para conjuntos para busca rápida na rede
+    genes_up = set(df_sig_pl.filter(pl.col("Log2FC") > 0)['Symbol'].to_list())
+    genes_down = set(df_sig_pl.filter(pl.col("Log2FC") < 0)['Symbol'].to_list())
+
+    # Para compatibilidade com os gráficos Plotly e agraph, convertemos o subconjunto sig para Pandas
+    df_sig = df_sig_pl.to_pandas()
+    
+    del all_dfs_pl, df_full_pl; gc.collect()
 
     m1, m2 = st.columns(2)
     m1.metric("Soma Total de Genes", len(raw_symbols))
@@ -101,7 +115,6 @@ if uploaded_files:
 
     with tab2:
         st.subheader("Rede de Interações Físicas (Análise de Tooltips)")
-        st.caption("Passe o mouse sobre as LINHAS para descobrir os processos compartilhados.")
         c_p, c_m = st.columns([1, 4])
         conf = c_p.selectbox("Confiança do STRING:", [150, 400, 700, 900], index=1)
         max_n = c_p.number_input("Máximo de Genes na Rede:", value=150)
@@ -112,17 +125,12 @@ if uploaded_files:
             
             if not string_df.empty:
                 nodes, edges, nodes_added = [], [], set()
-                
-                # Selecionar Top 25 Vias/Processos
                 top_vias_list = []
                 if isinstance(k_res, pd.DataFrame): top_vias_list.extend(k_res.head(12)['Term'].tolist())
                 if isinstance(g_res, pd.DataFrame): top_vias_list.extend(g_res.head(13)['Term'].tolist())
 
-                # Montar Nós e Arestas
                 for _, row in string_df.iterrows():
                     g1, g2 = row['preferredName_A'], row['preferredName_B']
-                    
-                    # LOGICA DE TOOLTIP PARA LINHAS:
                     shared_paths = []
                     if isinstance(k_res, pd.DataFrame):
                         k_m = k_res[k_res['Term'].isin(top_vias_list) & k_res['Genes'].apply(lambda x: g1 in str(x) and g2 in str(x))]
@@ -138,16 +146,14 @@ if uploaded_files:
                             color = '#FF4B4B' if g in genes_up else ('#1C83E1' if g in genes_down else '#D3D3D3')
                             nodes.append(Node(id=g, label=g, size=15, color=color))
                             nodes_added.add(g)
-                    
-                    # Adiciona a linha com o título que aparece ao passar o mouse
                     edges.append(Edge(source=g1, target=g2, title=tooltip_text))
 
                 config = Config(width=g_width, height=g_height, directed=False, physics=False, hierarchical=False, stabilization=True) 
                 with c_m: agraph(nodes=nodes, edges=edges, config=config)
                 
-                # Tabela de Mapeamento (Conforme aprovado anteriormente)
+                # Tabela de Mapeamento
                 st.divider()
-                st.subheader("📋 Mapeamento Funcional: Processos vs Genes da Rede")
+                st.subheader("📋 Mapeamento Funcional")
                 mapping_data = []
                 current_network_genes = list(nodes_added)
                 full_enrichment = pd.concat([k_res.head(12), g_res.head(13)]) if (k_res is not None and g_res is not None) else pd.DataFrame()
@@ -164,13 +170,11 @@ if uploaded_files:
                                 "Significância (FDR)": f"{row['Adjusted P-value']:.2e}"
                             })
                 st.table(pd.DataFrame(mapping_data))
-            else:
-                st.info("Nenhuma interação detectada.")
 
     with tab3:
         st.subheader("Master Regulators (JASPAR/TRRUST)")
         res_tf = None
-        for db in ['JASPAR_2022', 'JASPAR_2024', 'TRRUST_Transcription_Factors_2019']:
+        for db in ['JASPAR_2024', 'TRRUST_Transcription_Factors_2019']:
             if res_tf is None: res_tf = run_enrichr(unique_symbols, db)
         
         if isinstance(res_tf, pd.DataFrame):
@@ -180,8 +184,5 @@ if uploaded_files:
             export_df = df_final[['TF_Symbol', 'Genes', 'Adjusted P-value', 'Overlap']].copy()
             st.dataframe(export_df, use_container_width=True)
             st.download_button("📥 Baixar CSV para App 3", export_df.to_csv(index=False).encode('utf-8'), "tabela_regulacao_lumos.csv")
-        else:
-            st.error("Falha ao carregar reguladores.")
 else:
     st.info("Aguardando CSVs.")
-    
