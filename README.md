@@ -31,10 +31,9 @@ Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Se
 
 <img width="200" height="78" alt="calculo" src="https://github.com/user-attachments/assets/92c1af98-8873-4805-b116-bbe6d7d19b54" />
 
+- **Shrinkage Estimation:** We implemented empirical Bayesian dispersion estimation to stabilize fold change in genes with low counts, reducing technical noise and false positives.
 
-**Shrinkage Estimation:** We implemented empirical Bayesian dispersion estimation to stabilize fold change in genes with low counts, reducing technical noise and false positives.
-
-**Multiple Testing Correction:** The software automatically applies the Benjamini-Hochberg (FDR) method to control the rate of false discoveries in large-scale experiments.
+- **Multiple Testing Correction:** The software automatically applies the Benjamini-Hochberg (FDR) method to control the rate of false discoveries in large-scale experiments.
 
 **Input:** Raw count matrices and metadata.
 
@@ -49,7 +48,11 @@ Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Se
 
 🧬 **b. APP (Arithmancy Pathway Profiler)**
 
-A functional enrichment module using GSEApy.
+A functional enrichment module using GSEApy. Unlike simple list tools, the APP module uses the weighted Gene Set Enrichment Analysis (GSEA) algorithm:
+
+- The Enrichment Score (ES) calculation reflects the degree to which a set of genes $S$ is represented at the extremes (top or bottom) of a ranked list $L$.
+
+- This allows for the identification of activated or repressed biological pathways even when individual genes do not reach isolated statistical significance.
 
 **Features:** Gene Set Enrichment Analysis (GSEA).
 
@@ -62,7 +65,11 @@ A functional enrichment module using GSEApy.
 
 🕸 **c. PG (PrioriGraph)**
 
-Our flagship tool for building networks based on prior biological knowledge.
+Our flagship tool for building networks based on prior biological knowledge. The distinguishing feature of PrioriGraph is the transition from co-expression to regulatory causality.
+
+- **Eigenvector Centrality:** We identify Master Regulators not only by the number of connections (degree), but by the quality of those connections (being connected to other important nodes).
+
+- **Integration by Prior Knowledge:** Unlike de novo networks, PrioriGraph overlays its RNA-Seq data with validated interactions (curated in STRING/JASPAR), mitigating the problem of spurious correlations.
 
 **Features:** Integration of DEGs and transcription factors in interaction networks.
 
@@ -71,11 +78,38 @@ Our flagship tool for building networks based on prior biological knowledge.
 **Visualization:** High-performance interactive graph rendering.
 
 _______________________________________________
-⚙ **3. Installation & Local Execution**
+🛠️ **4. Professional Engineering Standards**
+To ensure reproducibility (a fundamental pillar of Open Science), the project adopts:
+
+🐳 Reproducibility with .devcontainer
+
+The use of .devcontainer ensures that the execution environment (Python versions, C++ compilers for pydeseq2, and system drivers) is identical for any researcher. This eliminates the common error of "conflicting dependencies" on Linux/Ubuntu systems.
+
+🧪 Unit Testing & Validation
+
+The repository includes a test suite (/tests) that validates:
+
+a. The integrity of count normalization.
+
+b. The convergence of network layout algorithms.
+
+c. The consistency of metadata during module parsing.
+
+______________________________________________________
+📊 **5. Use Case: From Raw Counts to Discovery**
+
+**Normalization:** The raw data is transformed to a logarithmic stable scale (VST or rlog).
+
+**Contrast Matrix:** The user defines the experimental vs. control condition.
+
+**Cross-Validation:** The DEGs identified in DDEA are automatically injected into PrioriGraph for system visualization.
+
+______________________________________________________
+⚙ **6. Installation & Local Execution**
 
 ```bash
 # Bash
-________________________________________________
+______________________________________________________
 # 1. Clone the repository
 git clone [https://github.com/evomol-lab/lumos-networks.git](https://github.com/evomol-lab/lumos-networks.git)
 
@@ -93,7 +127,7 @@ pip install -r requirements.txt
 streamlit run Lumos_Home.py
 ```
 ___________________________________________________
-📄 **4. Core Requirements**
+📄 **7. Core Requirements**
 
 Lumos relies on the following state-of-the-art libraries:
 
@@ -106,7 +140,7 @@ Lumos relies on the following state-of-the-art libraries:
 **Visualization:** plotly, matplotlib, seaborn.
 
 ______________________________________________________
-📁 **5. Project Structure**
+📁 **8. Project Structure**
 
 The repository follows the Streamlit Multipage pattern:
 
@@ -126,7 +160,7 @@ lumos-networks/
 ```
 
 ________________________________________________________
-🤝 **6. Credits & Support**
+🤝 **9. Credits & Support**
 
 The Lumos Networks suite is an ongoing collaborative effort developed at the EvoMol-Lab (Laboratory of Molecular Evolution and Bioinformatics), part of the Bioinformatics Multidisciplinary Environment (BioME) at the Federal University of Rio Grande do Norte (UFRN), Brazil.
 
@@ -159,7 +193,7 @@ This project is supported by the following Brazilian research agencies:
 **UFRN** (Institutional Support)
 
 _____________________________________________________________________________________
-⚖ **7. Disclaimer**
+⚖ **10. Disclaimer**
 
 This software is provided for research purposes. The developer team utilized generative AI for UI/UX optimization, PDF reporting architecture, and documentation refinement to ensure the highest code quality and user experience.
 
