@@ -1,6 +1,6 @@
 
 
-<img width="450" height="500" alt="Lumos Networks" src="https://github.com/user-attachments/assets/126e70c5-159f-47cd-b2fe-a7533de62d89" />
+<img width="450" height="560" alt="Lumos Networks" src="https://github.com/user-attachments/assets/126e70c5-159f-47cd-b2fe-a7533de62d89" />
 
 
 ## Lumos Networks 🧬
@@ -57,7 +57,7 @@ A functional enrichment module using GSEApy. Unlike simple list tools, the APP m
 **Databases:** Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
-<img src="https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f" width="250" alt="PrioriGraph Module Preview">
+<img src="https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f" width="230" alt="PrioriGraph Module Preview">
 </details>
 
 
