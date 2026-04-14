@@ -29,7 +29,8 @@ Lumos is organized into three specialized modules, accessible via the sidebar in
 
 Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq. Differential expression analysis utilizes the generalized linear model (GLM) of the Negative Binomial family:
 
-            <img width="200" height="78" alt="Captura de tela de 2026-04-14 15-58-16" src="https://github.com/user-attachments/assets/84888dcb-b027-4a50-af09-9bee7771603e" />
+            <img width="200" height="78" alt="calculo" src="https://github.com/user-attachments/assets/92c1af98-8873-4805-b116-bbe6d7d19b54" />
+
 
 **Shrinkage Estimation:** We implemented empirical Bayesian dispersion estimation to stabilize fold change in genes with low counts, reducing technical noise and false positives.
 
