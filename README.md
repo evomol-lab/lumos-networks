@@ -222,6 +222,7 @@ Reingold, J., et al. (2023). fpdf2: Simple PDF generation for Python. https://gi
 
 _____________________________________________________________________________________
 ⚖ **11. Research Software Disclaimer & Development Notice**
+
 This software is provided exclusively for research purposes. To ensure peak code quality and an optimized user experience, the development team integrated generative AI tools throughout the engineering process.
 
 AI assistance was specifically utilized for:
