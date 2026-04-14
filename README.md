@@ -10,12 +10,12 @@ An Integrated Suite for Transcriptomics and Biological Network Analysis
 
 Developed by members of the EvoMol-Lab at the BioME - UFRN
 
-_______________________________________________________________________________________________________________________________________________________________________________________________________
+_______________________________________________________________
 🌟 **1. Introduction**
 
 Lumos Networks is a modular Python web application designed to bridge the gap between raw transcriptomic data and systems biology insights. Developed at EvoMol-Lab (UFRN), the suite provides a streamlined workflow for Differential Expression Analysis, Functional Enrichment, and Knowledge-based Network construction.
 
-________________________________________________________________________________________________________________________________________________________________________________________________________
+_______________________________________________________________
 🛠 **2. The Lumos Suite (Modules)**
 
 Lumos is organized into three specialized modules, accessible via the sidebar in the multipage application:
@@ -27,7 +27,13 @@ Lumos is organized into three specialized modules, accessible via the sidebar in
 
 📊 **a. DDEA (Diagonal Differential Expression Analysis)**
 
-Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq.
+Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq. Differential expression analysis utilizes the generalized linear model (GLM) of the Negative Binomial family:
+
+            <img width="200" height="78" alt="Captura de tela de 2026-04-14 15-58-16" src="https://github.com/user-attachments/assets/84888dcb-b027-4a50-af09-9bee7771603e" />
+
+**Shrinkage Estimation:** We implemented empirical Bayesian dispersion estimation to stabilize fold change in genes with low counts, reducing technical noise and false positives.
+
+**Multiple Testing Correction:** The software automatically applies the Benjamini-Hochberg (FDR) method to control the rate of false discoveries in large-scale experiments.
 
 **Input:** Raw count matrices and metadata.
 
@@ -63,12 +69,12 @@ Our flagship tool for building networks based on prior biological knowledge.
 
 **Visualization:** High-performance interactive graph rendering.
 
-__________________________________________________________________________________________________________________________________________________________________________________________________________
+_______________________________________________
 ⚙ **3. Installation & Local Execution**
 
 ```bash
 # Bash
-____________________________________________________________________________________________________________
+________________________________________________
 # 1. Clone the repository
 git clone [https://github.com/evomol-lab/lumos-networks.git](https://github.com/evomol-lab/lumos-networks.git)
 
@@ -85,7 +91,7 @@ pip install -r requirements.txt
 # 5. Run the application
 streamlit run Lumos_Home.py
 ```
-_________________________________________________________________________________________________________________________________________________________________________________________________________
+___________________________________________________
 📄 **4. Core Requirements**
 
 Lumos relies on the following state-of-the-art libraries:
@@ -98,25 +104,27 @@ Lumos relies on the following state-of-the-art libraries:
 
 **Visualization:** plotly, matplotlib, seaborn.
 
-__________________________________________________________________________________________________________________________________________________________________________________________________________
+______________________________________________________
 📁 **5. Project Structure**
 
 The repository follows the Streamlit Multipage pattern:
 
 ```text
 text
-___________________________________________________________
+______________________________________________________
 lumos-networks/
-├── Lumos_Home.py          # Landing page & Global Config
-├── requirements.txt       # Version-controlled dependencies
-├── pages/                 # Module directory
-│   ├── 1_DDEA.py          # Differential Expression logic
-│   ├── 2_APP.py           # Enrichment Analysis logic
-│   └── 3_PrioriGraph.py   # Network construction logic
-└── assets/                # Logos and documentation images
+├── .devcontainer/         # Configurations for an isolated development environment (Docker)
+├── assets/                # Logos, images and visual documentation
+├── fonts/                 # Custom font files for the Streamlit UI
+├── packages               # Core logic, statistical functions, and reusable classes
+├── pages/                 # Streamlit multipage application pages
+├── LICENSE                # File containing the text of the Apache License 2.0
+├── Lumos_Home.py          # Main file (App entry point)
+├── README.md              # Main documentation
+└── requirements.txt       # List of dependencies and versions
 ```
 
-__________________________________________________________________________________________________________________________________________________________________________________________________________
+________________________________________________________
 🤝 **6. Credits & Support**
 
 The Lumos Networks suite is an ongoing collaborative effort developed at the EvoMol-Lab (Laboratory of Molecular Evolution and Bioinformatics), part of the Bioinformatics Multidisciplinary Environment (BioME) at the Federal University of Rio Grande do Norte (UFRN), Brazil.
@@ -127,9 +135,9 @@ The Lumos Networks suite is an ongoing collaborative effort developed at the Evo
 
 **MSc. Laís de Carvalho Gonçalves** – PhD Student & Lead Developer - https://github.com/laisdcg
 
-**Djorkaeff Oliveira Fontinele** – Master’s Student & Developer - https://github.com/djkfof
-
 **Rodrigo Arruda Orvate** – Master’s Student & Developer - https://github.com/RodrigoOrvate
+
+**Djorkaeff Oliveira Fontinele** – Master’s Student & Developer - https://github.com/djkfof
 
 
 🏛 **Institutions & Partners**
@@ -149,16 +157,15 @@ This project is supported by the following Brazilian research agencies:
 
 **UFRN** (Institutional Support)
 
-_______________________________________________________________________________________________________________________________________________________________________________________________________
+_____________________________________________________________________________________
 ⚖ **7. Disclaimer**
 
 This software is provided for research purposes. The developer team utilized generative AI for UI/UX optimization, PDF reporting architecture, and documentation refinement to ensure the highest code quality and user experience.
 
-_______________________________________________________________________________________________________________________________________________________________________________________________________
+_____________________________________________________________________________________
 ### Contato
 Dúvidas ou sugestões? jpmslima@gmail.com
-_______________________________________________________________________________________________________________________________________________________________________________________________________
-**Lumos Networks** © 2026 | Natal, RN - Brazil
+_____________________________________________________________________________________
 
 
 
