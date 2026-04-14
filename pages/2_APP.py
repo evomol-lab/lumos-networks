@@ -57,7 +57,7 @@ with st.sidebar:
     st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
 
     st.divider()
-    st.info("Você está no módulo de funcional.")
+    st.info("Você está no módulo funcional.")
     
 
 # 1. Localização atual: /code/src/pages/seu_script.py
