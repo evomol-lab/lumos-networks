@@ -169,10 +169,9 @@ The Lumos Networks suite is an ongoing collaborative effort developed at the Evo
 
 **MSc. Laís de Carvalho Gonçalves** – PhD Student & Lead Developer - https://github.com/laisdcg
 
-**Rodrigo Arruda Orvate** – Master’s Student & Developer - https://github.com/RodrigoOrvate
-
 **Djorkaeff Oliveira Fontinele** – Master’s Student & Developer - https://github.com/djkfof
 
+**Rodrigo Arruda Orvate** – Master’s Student & Developer - https://github.com/RodrigoOrvate
 
 🏛 **Institutions & Partners**
 
