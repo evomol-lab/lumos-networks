@@ -19,7 +19,7 @@ _______________________________________________________________
 Lumos is organized into three specialized modules, accessible via the sidebar in the multipage application:
 
 
-<img width="480" height="590" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
+<img width="250" height="350" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
 
 
 
@@ -40,7 +40,7 @@ Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Se
 **Output:** Volcano plots, MA plots, and interactive result tables.
 
 
-<img width="2760" height="1504" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
+<img width="250" height="250" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
 
 
 
@@ -57,7 +57,7 @@ A functional enrichment module using GSEApy. Unlike simple list tools, the APP m
 **Databases:** Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
-![PrioriGraph(PG)](https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f)
+![PG](https://github.com/user-attachments/assets/8c819c35-fcf1-417a-a131-4cd4547032dd)
 
 
 
