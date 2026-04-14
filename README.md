@@ -1,17 +1,4 @@
-```YAML
 
----
-title: Lumos Networks
-emoji: 🧬
-colorFrom: yellow
-colorTo: blue
-sdk: streamlit
-sdk_version: 1.32.0
-app_file: Lumos_Home.py
-pinned: false
-license: apache-2.0
----
-```
 
 <img width="2048" height="1401" alt="Lumos Networks" src="https://github.com/user-attachments/assets/126e70c5-159f-47cd-b2fe-a7533de62d89" />
 
