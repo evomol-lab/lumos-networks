@@ -6,22 +6,70 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 st.set_page_config(layout="wide", page_title="PrioriGraph")
 
-import streamlit as st
 import os
+import streamlit as st
 
-# 1. Encontrar o diretório base do projeto (onde está o Lumos_Home.py)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 2. Construir o caminho para o logo específico
-# Exemplo para a página do DDEA:
-logo_path = os.path.join(BASE_DIR, "assets", "logos", "PG.png")
+# 1. Configuração da página (ajuste o título para cada módulo)
+st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
+
+# 2. CSS para manter o padrão visual (Igual à Home)
+st.markdown("""
+    <style>
+    [data-testid="stSidebarNav"] {display: none;} /* Esconde o menu original */
+    .stPageLink {
+        background-color: #f0f2f6;
+        border-radius: 20px;
+        padding: 8px;
+        border: 1px solid #e0e4eb;
+    }
+    .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; font-weight: bold; }
+    </style>
+    """, unsafe_allow_html=True)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
+LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "assets", "Lumos Networks.png")
+
+# --- SIDEBAR PADRONIZADA ---
+with st.sidebar:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=250)
+    
+    st.divider()
+    st.markdown("### 🚀 Navegação")
+    
+    # IMPORTANTE: Caminhos saindo da pasta 'pages'
+    st.page_link("Lumos_Home.py", label="Página Inicial", icon="🏠")
+    
+    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Análise</p>', unsafe_allow_html=True)
+    st.page_link("pages/1_DDEA.py", label="DDEA", icon="📈")
+    
+    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Funcional</p>', unsafe_allow_html=True)
+    st.page_link("pages/2_APP.py", label="APP", icon="🧪")
+    
+    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Redes</p>', unsafe_allow_html=True)
+    st.page_link("pages/3_PG.py", label="PG", icon="🕸️")
+
+    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentação</p>', unsafe_allow_html=True)
+    st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
+
+    st.divider()
+    st.info("Você está no módulo de redes.")
+
+
+# 1. Localização atual: /code/src/pages/seu_script.py
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Subir UM nível para chegar na pasta 'src'
+PARENT_DIR = os.path.dirname(FILE_DIR)
+
+# 3. Apontar para o arquivo que está solto na 'src'
+logo_path = os.path.join(PARENT_DIR, "assets", "PG.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
         st.image(logo_path, use_container_width=True)
-    else:
-        # Debug ruthlessly: se não aparecer, ele mostra onde tentou procurar
-        st.error(f"Erro: Logo não encontrado em {logo_path}")
 
 # ============================================================
 # INTERFACE PRINCIPAL
