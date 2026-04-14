@@ -191,10 +191,29 @@ This project is supported by the following Brazilian research agencies:
 
 **UFRN** (Institutional Support)
 
-_____________________________________________________________________________________
-⚖ **10. Disclaimer**
+____________________________________________________________________________________
+**10.References**
 
-This software is provided for research purposes. The developer team utilized generative AI for UI/UX optimization, PDF reporting architecture, and documentation refinement to ensure the highest code quality and user experience.
+To support the ecosystem, please credit the open-source libraries integrated into this tool when publishing your research:
+
+
+
+
+
+_____________________________________________________________________________________
+⚖ **11. Research Software Disclaimer & Development Notice**
+This software is provided exclusively for research purposes. To ensure peak code quality and an optimized user experience, the development team integrated generative AI tools throughout the engineering process.
+
+AI assistance was specifically utilized for:
+
+System Architecture & UI/UX: Optimization of user interfaces and the structural design of the PDF reporting architecture.
+
+Code Engineering: Technical revision, logic optimization, and performance refinement.
+
+Documentation & Language: Elaborating complex topic structures and conducting comprehensive English language reviews for clarity and precision.
+
+**Disclaimer**
+This software is intended for academic and scientific use. While generative AI was employed to enhance technical efficiency and documentation standards, the final output remains under the oversight of the development team to ensure research integrity.
 
 _____________________________________________________________________________________
 ### Contato
