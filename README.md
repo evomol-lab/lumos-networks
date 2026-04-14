@@ -195,37 +195,29 @@ ________________________________________________________________________________
 
 To support the ecosystem, please credit the open-source libraries integrated into this tool when publishing your research:
 
-Core Framework & Interface
+Streamlit Team. (2023). Streamlit: The fastest way to build and share data apps. https://streamlit.io
 
-Streamlit: Streamlit Team. (2023). Streamlit: The fastest way to build and share data apps. https://streamlit.io
+Muzellec, B., et al. (2023). PyDESeq2: a python implementation of DESeq2. https://github.com/owkin/PyDESeq2
 
-Bioinformatics & Systems Biology
+Fang, Z., et al. (2023). GSEApy: Gene Set Enrichment Analysis in Python. https://github.com/zqfang/GSEApy
 
-PyDESeq2: Muzellec, B., et al. (2023). PyDESeq2: a python implementation of DESeq2. https://github.com/owkin/PyDESeq2
+Hagberg, A., et al. (2008). Exploring Network Structure, Dynamics, and Function using NetworkX. https://networkx.org
 
-GSEApy: Fang, Z., et al. (2023). GSEApy: Gene Set Enrichment Analysis in Python. https://github.com/zqfang/GSEApy
+Cock, P. J., et al. (2009). Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics.
 
-NetworkX: Hagberg, A., et al. (2008). Exploring Network Structure, Dynamics, and Function using NetworkX. https://networkx.org
+Harris, C. R., et al. (2020). Array programming with NumPy. Nature; McKinney, W. (2010). Data Structures for Statistical Computing in Python.
 
-Biopython: Cock, P. J., et al. (2009). Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics.
+Pedregosa, F., et al. (2011). Scikit-learn: Machine Learning in Python. Journal of Machine Learning Research.
 
-Data Science & Statistics
+Virtanen, P., et al. (2020). SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python. Nature Methods.
 
-Pandas & NumPy: Harris, C. R., et al. (2020). Array programming with NumPy. Nature; McKinney, W. (2010). Data Structures for Statistical Computing in Python.
+Seabold, S., & Perktold, J. (2010). Statsmodels: Econometric and statistical modeling with python.
 
-Scikit-learn: Pedregosa, F., et al. (2011). Scikit-learn: Machine Learning in Python. Journal of Machine Learning Research.
+Plotly Technologies Inc. (2015). Collaborative data science. https://plot.ly
 
-SciPy: Virtanen, P., et al. (2020). SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python. Nature Methods.
+Thommes, M. (2023). Streamlit-agraph: Interactive Graph Visualizations in Streamlit.
 
-Statsmodels: Seabold, S., & Perktold, J. (2010). Statsmodels: Econometric and statistical modeling with python.
-
-Visualization & Reporting
-
-Plotly: Plotly Technologies Inc. (2015). Collaborative data science. https://plot.ly
-
-Streamlit-agraph: Thommes, M. (2023). Streamlit-agraph: Interactive Graph Visualizations in Streamlit.
-
-fpdf2: Reingold, J., et al. (2023). fpdf2: Simple PDF generation for Python. https://github.com/py-pdf/fpdf2
+Reingold, J., et al. (2023). fpdf2: Simple PDF generation for Python. https://github.com/py-pdf/fpdf2
 
 
 _____________________________________________________________________________________
