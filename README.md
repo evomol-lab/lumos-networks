@@ -9,6 +9,7 @@ sdk: streamlit
 sdk_version: 1.32.0
 app_file: Lumos_Home.py
 pinned: false
+license: apache-2.0
 ---
 ```
 
