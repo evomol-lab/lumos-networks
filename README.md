@@ -40,7 +40,7 @@ Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Se
 **Output:** Volcano plots, MA plots, and interactive result tables.
 
 
-<img width="280" height="280" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
+<img width="380" height="380" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
 
 
 
@@ -57,9 +57,7 @@ A functional enrichment module using GSEApy. Unlike simple list tools, the APP m
 **Databases:** Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
-<details>
-  <summary>📸 Ver interface do PrioriGraph</summary>
-  <img src="https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f" width="280" alt="PrioriGraph Module Preview">
+<img src="https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f" width="250" alt="PrioriGraph Module Preview">
 </details>
 
 
