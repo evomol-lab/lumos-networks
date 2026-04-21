@@ -616,33 +616,42 @@ def run_app():
                 is_int = np.all(np.equal(np.mod(data_vals, 1), 0))
                 
                 if mode == "RNASeq" and HAS_DESEQ2 and not is_logged:
+                    # Preparação dos Metadados
                     meta_ds = pd.DataFrame({'cond': ['C']*len(c_ref) + ['T']*len(c_test)}, index=c_ref + c_test)
                     
-                    # Ajuste de Paridade: design="cond" 
-                    dds = DeseqDataSet(counts=df_sub.T.astype(np.int32), metadata=meta_ds, design="cond", quiet=True)
+                    # 1. Inicialização (Paridade com seu requirements: use 'design')
+                    dds = DeseqDataSet(
+                        counts=df_sub.T.astype(np.int32), 
+                        metadata=meta_ds, 
+                        design="cond", 
+                        quiet=True
+                    )
+                    
+                    # 2. Execução do Motor DESeq2
                     dds.deseq2()
                     
-                    # Ajuste de Paridade: VST (Protegido por Try/Except para evitar crash de RAM)
+                    # 3. Transformação VST (Igual ao seu código R para PCA/Heatmap)
                     try:
                         dds.vst()
                         pca_input = dds.layers['vst_counts']
-                        # Limpeza de memória imediata
                         import gc
-                        gc.collect()
+                        gc.collect() # Limpeza de RAM crítica para Streamlit Cloud
                     except Exception as e:
-                        st.warning(f"⚠️ Aviso: VST falhou (Memória insuficiente). Usando escala Log2 para visualização.")
+                        st.warning("⚠️ Memória insuficiente para VST. Usando Log2 para visualização.")
                         pca_input = np.log2(df_sub.T + 1)
                     
+                    # 4. Resultados Estatísticos
                     stat_res = DeseqStats(dds, contrast=["cond", "T", "C"], quiet=True)
                     stat_res.summary()
                     res_df = stat_res.results_df
+                    
                     res = pd.DataFrame({
                         'Probe_ID': res_df.index, 
                         'Log2FC': res_df['log2FoldChange'], 
                         'FDR': res_df['padj']
                     }).dropna()
                     
-                    # Atualiza data_norm com os valores VST ou fallback
+                    # 5. Sincronização da matriz normalizada para os plots
                     data_norm = pd.DataFrame(pca_input.T, columns=c_ref + c_test, index=df_sub.index)
                 else:
                     # Teste T para Microarray ou dados já em LOG
