@@ -581,16 +581,30 @@ def run_app():
                     st.error(f"❌ Erro de Mapeamento. Colunas disponíveis na matriz: {list(matrix_cols)[:5]}")
                     st.stop()
 
+                # [TRECHO ATUALIZADO]
                 df_sub = df_matrix[c_ref + c_test].apply(pd.to_numeric, errors='coerce').fillna(0)
-                # Remove genes com soma zero (ruído)
-                df_sub = df_sub[df_sub.sum(axis=1) > 0]
+                
+                # 1. PRÉ-FILTRAGEM (PRE-FILTERING) - IDÊNTICO AO SEU CÓDIGO R
+                # Detecta se os dados são brutos ou log para definir o threshold
+                is_logged = np.nanmax(df_sub.values) < 50
+                threshold = 1 if is_logged else 10
+                min_samples = min(len(c_ref), len(c_test))
+                
+                # Mantém genes com contagem >= threshold em pelo menos N amostras
+                mask_keep = (df_sub >= threshold).sum(axis=1) >= min_samples
+                df_sub = df_sub[mask_keep]
+                
+                if df_sub.empty:
+                    st.error("❌ A filtragem removeu todos os genes. Verifique a escala dos dados.")
+                    st.stop()
+
                 data_vals = df_sub.values.astype(np.float32)
 
-                # NORMALIZAÇÃO
+                # 2. NORMALIZAÇÃO (PARA MICROARRAY OU RNA-SEQ LOG)
                 if st.session_state.mode == "Microarray": 
                     data_norm_vals = quantile_normalize(data_vals)
                 else: 
-                    if apply_log and np.nanmax(data_vals) > 50:
+                    if apply_log and not is_logged:
                         data_norm_vals = np.log2(np.clip(data_vals, 0, None) + 1.0)
                     else:
                         data_norm_vals = data_vals
@@ -598,17 +612,34 @@ def run_app():
                 data_norm = pd.DataFrame(data_norm_vals, columns=c_ref + c_test, index=df_sub.index)
                 m1, m2 = data_norm[c_ref].values, data_norm[c_test].values
 
-                # TESTES ESTATÍSTICOS
+                # 3. TESTES ESTATÍSTICOS (COM AJUSTE DE PARIDADE R)
                 is_int = np.all(np.equal(np.mod(data_vals, 1), 0))
-                if st.session_state.mode == "RNASeq" and is_int and HAS_DESEQ2:
+                
+                if mode == "RNASeq" and HAS_DESEQ2 and not is_logged:
                     meta_ds = pd.DataFrame({'cond': ['C']*len(c_ref) + ['T']*len(c_test)}, index=c_ref + c_test)
+                    
+                    # Ajuste de Paridade: design="cond" e sf_type='poscount'
                     dds = DeseqDataSet(counts=df_sub.T.astype(np.int32), metadata=meta_ds, design="cond", quiet=True)
-                    dds.deseq2()
+                    dds.deseq2(sf_type='poscount')
+                    
+                    # Ajuste de Paridade: VST para PCA e Heatmap (essencial para similaridade com R)
+                    dds.vst()
+                    pca_input = dds.layers['vst_counts']
+                    
                     stat_res = DeseqStats(dds, contrast=["cond", "T", "C"], quiet=True)
                     stat_res.summary()
                     res_df = stat_res.results_df
-                    res = pd.DataFrame({'Probe_ID': res_df.index, 'Log2FC': res_df['log2FoldChange'], 'FDR': res_df['padj']}).dropna()
+                    res = pd.DataFrame({
+                        'Probe_ID': res_df.index, 
+                        'Log2FC': res_df['log2FoldChange'], 
+                        'FDR': res_df['padj']
+                    }).dropna()
+                    
+                    # Atualiza data_norm com os valores VST para o Heatmap ficar igual ao R
+                    data_norm = pd.DataFrame(pca_input.T, columns=c_ref + c_test, index=df_sub.index)
+                    
                 else:
+                    # Teste T para Microarray ou dados já em LOG
                     lfc = np.nanmean(m2, axis=1) - np.nanmean(m1, axis=1)
                     pvals = stats.ttest_ind(m2, m1, axis=1, equal_var=False, nan_policy='omit').pvalue
                     mask = ~np.isnan(pvals)
