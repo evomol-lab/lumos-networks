@@ -92,7 +92,7 @@ logo_path = os.path.join(PARENT_DIR, "assets", "DDEA.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
+        st.image(logo_path, width='stretch')
 
 # ============================================================
 # PDF REPORT GENERATION CLASS
@@ -409,7 +409,7 @@ def run_app():
     st.set_page_config(layout="wide", page_title="DDEA Analytics Master")
     with st.sidebar:
         if os.path.exists("logo_ddea_streamlit.png"):
-            st.image("logo_ddea_streamlit.png", use_container_width=True)
+            st.image("logo_ddea_streamlit.png", width='stretch')
         st.title("DDEA Analytics")
         st.divider()
     st.title("Diagonal Differential Expression Alley 🧬")
@@ -420,7 +420,7 @@ def run_app():
         st.header("1. GEO Input")
         mode = st.radio("Experiment Type:", ["Microarray", "RNASeq"])
         gse_input = st.text_input("GSE ID:", placeholder="Ex: GSE117769")
-        fetch_btn = st.button("🚀 Fetch Data", use_container_width=True)
+        fetch_btn = st.button("🚀 Fetch Data", width='stretch')
 
         if 'meta_df' in st.session_state:
             st.divider()
@@ -516,7 +516,7 @@ def run_app():
 
     # ---- METADATA & GROUPS ----
     meta = st.session_state['meta_df'].copy()
-    with st.expander("📊 Metadata Explorer"): st.dataframe(meta, use_container_width=True)
+    with st.expander("📊 Metadata Explorer"): st.dataframe(meta, width='stretch')
     meta['display_label'] = meta.apply(lambda row: " | ".join([str(row[c]) for c in label_cols if c in row.index]), axis=1)
     label_to_gsm = dict(zip(meta['display_label'], meta['Accession']))
 
@@ -529,7 +529,7 @@ def run_app():
             st.session_state.new_group_input = ""
 
     c_i.text_input("New Group Name:", key="new_group_input")
-    c_b.button("➕ Add Group", use_container_width=True, on_click=add_group_callback)
+    c_b.button("➕ Add Group", width='stretch', on_click=add_group_callback)
 
     cols_g = st.columns(2)
     for i, (g_name, g_samples) in enumerate(list(st.session_state['groups'].items())):
@@ -602,7 +602,7 @@ def run_app():
                 is_int = np.all(np.equal(np.mod(data_vals, 1), 0))
                 if st.session_state.mode == "RNASeq" and is_int and HAS_DESEQ2:
                     meta_ds = pd.DataFrame({'cond': ['C']*len(c_ref) + ['T']*len(c_test)}, index=c_ref + c_test)
-                    dds = DeseqDataSet(counts=df_sub.T.astype(int), metadata=meta_ds, design_factors="cond", quiet=True)
+                    dds = DeseqDataSet(counts=df_sub.T.astype(int), metadata=meta_ds, design="cond", quiet=True)
                     dds.deseq2()
                     stat_res = DeseqStats(dds, contrast=["cond", "T", "C"], quiet=True)
                     stat_res.summary()
@@ -656,7 +656,7 @@ def run_app():
             fig_v.add_vline(x=fc_thr, line_dash="dash"); fig_v.add_vline(x=-fc_thr, line_dash="dash")
             fig_v.add_hline(y=-np.log10(p_thr), line_dash="dash")
             st.session_state['fig_v'] = fig_v.update_layout(template="simple_white", height=500)
-            st.plotly_chart(st.session_state['fig_v'], use_container_width=True)
+            st.plotly_chart(st.session_state['fig_v'], width='stretch')
             
             try:
                 pca = PCA(n_components=2)
@@ -665,7 +665,7 @@ def run_app():
                 df_pc['Group'] = [st.session_state['rn'] if x in st.session_state['c_ref'] else st.session_state['tn'] for x in df_pc.index]
                 # SALVANDO o PCA
                 st.session_state['fig_pca'] = px.scatter(df_pc, x='PC1', y='PC2', color='Group', text=df_pc.index).update_traces(textposition='top center')
-                st.plotly_chart(st.session_state['fig_pca'], use_container_width=True)
+                st.plotly_chart(st.session_state['fig_pca'], width='stretch')
             except: pass
 
         with t2:
@@ -673,11 +673,11 @@ def run_app():
             if not up_list.empty:
                 # SALVANDO Top Up
                 st.session_state['fig_up'] = px.bar(up_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Reds', title="Top 20 UP")
-                ca.plotly_chart(st.session_state['fig_up'], use_container_width=True)
+                ca.plotly_chart(st.session_state['fig_up'], width='stretch')
             if not down_list.empty:
                 # SALVANDO Top Down
                 st.session_state['fig_down'] = px.bar(down_list.head(20), x='Symbol', y='Log2FC', color='Log2FC', color_continuous_scale='Blues_r', title="Top 20 DOWN")
-                cb.plotly_chart(st.session_state['fig_down'], use_container_width=True)
+                cb.plotly_chart(st.session_state['fig_down'], width='stretch')
 
         with t3:
             if not df_diff.empty:
@@ -686,10 +686,10 @@ def run_app():
                 h_z = (h_mat - np.mean(h_mat, axis=1, keepdims=True)) / (np.std(h_mat, axis=1, keepdims=True) + 1e-9)
                 # SALVANDO Heatmap
                 st.session_state['fig_h'] = go.Figure(data=go.Heatmap(z=h_z, x=df_norm.columns, y=df_diff.head(len(valid_ids))['Symbol'].tolist(), colorscale='RdBu_r', zmid=0)).update_layout(height=max(400, len(valid_ids)*20))
-                st.plotly_chart(st.session_state['fig_h'], use_container_width=True)
+                st.plotly_chart(st.session_state['fig_h'], width='stretch')
 
         with t4:
-            st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']], use_container_width=True)
+            st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']], width='stretch')
             csv_name = f"{st.session_state.get('gse_id', 'DEGs')}_results.csv"
             st.download_button(
                 label="📥 Baixar CSV", 
