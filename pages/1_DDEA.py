@@ -620,7 +620,7 @@ def run_app():
                     
                     # Ajuste de Paridade: design="cond" e sf_type='poscount'
                     dds = DeseqDataSet(counts=df_sub.T.astype(np.int32), metadata=meta_ds, design="cond", quiet=True)
-                    dds.deseq2(sf_type='poscount')
+                    dds.deseq2()
                     
                     # Ajuste de Paridade: VST para PCA e Heatmap (essencial para similaridade com R)
                     dds.vst()
