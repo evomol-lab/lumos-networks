@@ -453,7 +453,7 @@ def run_app():
 
             st.header("3. Export Report")
             if st.session_state.get('analysis_done'):
-                if st.button("📄 Generate PDF Report", use_container_width=True):
+                if st.button("📄 Generate PDF Report", width='stretch'):
                     # Elementos de metadados para garantir reprodutibilidade
                     elements = [
                         {"type": "metric", "label": "GSE ID", "value": st.session_state.get('gse_id', 'N/A'), "part": 1},
@@ -474,7 +474,7 @@ def run_app():
                             data=pdf_bytes,
                             file_name=f"DDEA_Report_{st.session_state.get('gse_id')}_{datetime.now().strftime('%Y%m%d')}.pdf",
                             mime="application/pdf",
-                            use_container_width=True
+                            width='stretch'
                         )
             else:
                 st.info("Execute a análise (Run Analysis) para habilitar o relatório.")
@@ -565,7 +565,7 @@ def run_app():
         ref_g = c1.selectbox("Referência (Controle):", group_names)
         test_g = c2.selectbox("Teste:", [g for g in group_names if g != ref_g])
 
-        if st.button("🔥 Run Analysis", use_container_width=True):
+        if st.button("🔥 Run Analysis", width='stretch'):
             with st.spinner("Processando Estatística Acadêmica..."):
                 
                 # BUSCA FLEXÍVEL DE COLUNAS
@@ -602,7 +602,7 @@ def run_app():
                 is_int = np.all(np.equal(np.mod(data_vals, 1), 0))
                 if st.session_state.mode == "RNASeq" and is_int and HAS_DESEQ2:
                     meta_ds = pd.DataFrame({'cond': ['C']*len(c_ref) + ['T']*len(c_test)}, index=c_ref + c_test)
-                    dds = DeseqDataSet(counts=df_sub.T.astype(int), metadata=meta_ds, design="cond", quiet=True)
+                    dds = DeseqDataSet(counts=df_sub.T.astype(np.int32), metadata=meta_ds, design="cond", quiet=True)
                     dds.deseq2()
                     stat_res = DeseqStats(dds, contrast=["cond", "T", "C"], quiet=True)
                     stat_res.summary()
