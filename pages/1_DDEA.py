@@ -19,6 +19,8 @@ from statsmodels.stats.multitest import fdrcorrection
 import itertools
 from sklearn.decomposition import PCA
 
+from pydeseq2.dds import DeseqDataSet
+from pydeseq2.ds import DeseqStats
 
 # 1. Configuração da página (ajuste o título para cada módulo)
 st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
@@ -69,8 +71,6 @@ with st.sidebar:
     
 # Impede erros de importação se as bibliotecas não estiverem presentes
 try:
-    from pydeseq2.dds import DeseqDataSet
-    from pydeseq2.ds import DeseqStats
     HAS_DESEQ2 = True
 except ImportError:
     HAS_DESEQ2 = False
@@ -618,13 +618,20 @@ def run_app():
                 if mode == "RNASeq" and HAS_DESEQ2 and not is_logged:
                     meta_ds = pd.DataFrame({'cond': ['C']*len(c_ref) + ['T']*len(c_test)}, index=c_ref + c_test)
                     
-                    # Ajuste de Paridade: design="cond" e sf_type='poscount'
+                    # Ajuste de Paridade: design="cond" 
                     dds = DeseqDataSet(counts=df_sub.T.astype(np.int32), metadata=meta_ds, design="cond", quiet=True)
                     dds.deseq2()
                     
-                    # Ajuste de Paridade: VST para PCA e Heatmap (essencial para similaridade com R)
-                    dds.vst()
-                    pca_input = dds.layers['vst_counts']
+                    # Ajuste de Paridade: VST (Protegido por Try/Except para evitar crash de RAM)
+                    try:
+                        dds.vst()
+                        pca_input = dds.layers['vst_counts']
+                        # Limpeza de memória imediata
+                        import gc
+                        gc.collect()
+                    except Exception as e:
+                        st.warning(f"⚠️ Aviso: VST falhou (Memória insuficiente). Usando escala Log2 para visualização.")
+                        pca_input = np.log2(df_sub.T + 1)
                     
                     stat_res = DeseqStats(dds, contrast=["cond", "T", "C"], quiet=True)
                     stat_res.summary()
@@ -635,9 +642,8 @@ def run_app():
                         'FDR': res_df['padj']
                     }).dropna()
                     
-                    # Atualiza data_norm com os valores VST para o Heatmap ficar igual ao R
+                    # Atualiza data_norm com os valores VST ou fallback
                     data_norm = pd.DataFrame(pca_input.T, columns=c_ref + c_test, index=df_sub.index)
-                    
                 else:
                     # Teste T para Microarray ou dados já em LOG
                     lfc = np.nanmean(m2, axis=1) - np.nanmean(m1, axis=1)
