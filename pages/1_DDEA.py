@@ -689,6 +689,9 @@ def run_app():
         # 3. Filtragem da tabela de DEGs (apenas os resultados > 1)
         df_diff = res[res['Status'] != 'Not Significant'].sort_values('FDR')
         st.session_state['df_diff'] = df_diff 
+
+        st.session_state['genes_significativos'] = df_diff['Symbol'].unique().tolist()
+
         up_list = df_diff[df_diff['Status'] == 'Up-regulated']
         down_list = df_diff[df_diff['Status'] == 'Down-regulated']
 
