@@ -5,7 +5,55 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 # 1. Configuração ÚNICA
 st.set_page_config(page_title="Lumos Networks | PrioriGraph", page_icon="🕸️", layout="wide")
+st.set_page_config(layout="wide", page_title="PrioriGraph 👑")
 
+iBASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
+LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "Lumos Networks.png")
+
+# --- SIDEBAR PADRONIZADA ---
+with st.sidebar:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=250)
+    
+    st.divider()
+    st.markdown("### 🚀 Navegação")
+    
+    # IMPORTANTE: Caminhos saindo da pasta 'pages'
+    st.page_link("Lumos_Home.py", label="Página Inicial", icon="🏠")
+    
+    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Análise</p>', unsafe_allow_html=True)
+    st.page_link("pages/1_DDEA.py", label="DDEA", icon="📈")
+    
+    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Funcional</p>', unsafe_allow_html=True)
+    st.page_link("pages/2_APP.py", label="APP", icon="🧪")
+    
+    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Redes</p>', unsafe_allow_html=True)
+    st.page_link("pages/3_PG.py", label="PG", icon="🕸️")
+
+    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentação</p>', unsafe_allow_html=True)
+    st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
+
+    st.divider()
+    st.info("Você está no módulo de REDES.")
+
+
+# 1. Localização atual: /code/src/pages/seu_script.py
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Subir UM nível para chegar na pasta 'src'
+PARENT_DIR = os.path.dirname(FILE_DIR)
+
+# 3. Apontar para o arquivo que está solto na 'src'
+logo_path = os.path.join(PARENT_DIR, "PG.png")
+
+with st.sidebar:
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+
+
+# 1. Configuração da página (ajuste o título para cada módulo)
+st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
 # 2. Recuperação de Dados do APP (Sincronização entre módulos)
 k_res = st.session_state.get('k_res')
 g_res = st.session_state.get('g_res')
@@ -18,14 +66,7 @@ with st.sidebar:
     st.divider()
     uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
     num_vias = st.slider("Quantidade de Clusters (Vias):", 2, 15, 6)
-    
-    st.divider()
-    st.markdown("### 🚀 Navegação")
-    st.page_link("Lumos_Home.py", label="Início", icon="🏠")
-    st.page_link("pages/2_APP.py", label="APP (Funcional)", icon="🧪")
-    st.page_link("pages/3_PG.py", label="PG (Redes)", icon="🕸️")
 
-st.title("PrioriGraph 👑")
 
 if uploaded_files and (k_res is not None or g_res is not None):
     # --- 1. PROCESSAMENTO DE DADOS ---
