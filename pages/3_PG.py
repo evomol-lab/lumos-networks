@@ -3,15 +3,15 @@ import pandas as pd
 import numpy as np
 from streamlit_agraph import agraph, Node, Edge, Config
 
-# Configuração ÚNICA
-st.set_page_config(layout="wide", page_title="PrioriGraph  👑")
-# Configuração da página (ajuste o título para cada módulo)
-st.set_page_config(page_title="Lumos Networks | REDES", page_icon="🕸️", layout="wide")
+st.set_page_config(layout="wide", page_title="PrioriGraph")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PARENT_DIR = os.path.dirname(BASE_DIR) # Raiz do projeto
-LOGO_PATH = os.path.join(PARENT_DIR, "assets", "Lumos Networks.png")
+import os
+import streamlit as st
 
+# 1. Configuração da página (ajuste o título para cada módulo)
+st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
+
+# 2. CSS para manter o padrão visual (Igual à Home)
 st.markdown("""
     <style>
     [data-testid="stSidebarNav"] {display: none;} /* Esconde o menu original */
@@ -24,6 +24,10 @@ st.markdown("""
     .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
+LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "assets", "Lumos Networks.png")
 
 # --- SIDEBAR PADRONIZADA ---
 with st.sidebar:
@@ -49,7 +53,7 @@ with st.sidebar:
     st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
 
     st.divider()
-    st.info("Você está no módulo de REDES.")
+    st.info("Você está no módulo de redes.")
 
 
 # 1. Localização atual: /code/src/pages/seu_script.py
@@ -65,10 +69,14 @@ with st.sidebar:
     if os.path.exists(logo_path):
         st.image(logo_path, use_container_width=True)
 
+# ============================================================
+# INTERFACE PRINCIPAL
+# ============================================================
 
-# 1. Configuração da página (ajuste o título para cada módulo)
-st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
-# 2. Recuperação de Dados do APP (Sincronização entre módulos)
+st.title("PrioriGraph 👑")
+st.markdown("### Integração de Redes Regulatórias (TF -> Genes)")
+
+# Recuperação de Dados do APP (Sincronização entre módulos)
 k_res = st.session_state.get('k_res')
 g_res = st.session_state.get('g_res')
 
