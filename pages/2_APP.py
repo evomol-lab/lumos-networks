@@ -218,7 +218,7 @@ if uploaded_files:
     with tab3:
         st.subheader("Master Regulators (JASPAR/TRRUST)")
         res_tf = None
-        for db in ['JASPAR_2022', 'JASPAR_2024', 'TRRUST_Transcription_Factors_2019']:
+        for db in ['JASPAR_2024', 'TRRUST_Transcription_Factors_2019']:
             if res_tf is None: res_tf = run_enrichr(unique_symbols, db)
         
         if isinstance(res_tf, pd.DataFrame):
