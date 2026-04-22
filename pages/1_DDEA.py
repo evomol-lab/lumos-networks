@@ -677,29 +677,66 @@ def run_app():
         if gene_area:
             res = res[res['Symbol'].str.upper().isin([g.strip().upper() for g in gene_area.split('\n') if g.strip()])]
 
-        res['Status'] = 'Not Significant'
-        res.loc[(res['FDR'] < p_thr) & (res['Log2FC'] >= fc_thr), 'Status'] = 'Up-regulated'
-        res.loc[(res['FDR'] < p_thr) & (res['Log2FC'] <= -fc_thr), 'Status'] = 'Down-regulated'
+        # 1. Sincronização da escala -log10
         res['-log10(FDR)'] = -np.log10(res['FDR'] + 1e-300)
 
+        # 2. Definição de Status (Resultados focados em > 1 no -log10)
+        res['Status'] = 'Not Significant'
+        # Critério: Significância maior que 1 no -log10 (equivale a P-adj < 0.1)
+        res.loc[(res['-log10(FDR)'] > 1) & (res['Log2FC'] >= fc_thr), 'Status'] = 'Up-regulated'
+        res.loc[(res['-log10(FDR)'] > 1) & (res['Log2FC'] <= -fc_thr), 'Status'] = 'Down-regulated'
+
+        # 3. Filtragem da tabela de DEGs (apenas os resultados > 1)
         df_diff = res[res['Status'] != 'Not Significant'].sort_values('FDR')
-        st.session_state['df_diff'] = df_diff # Salva para o PDF
+        st.session_state['df_diff'] = df_diff 
         up_list = df_diff[df_diff['Status'] == 'Up-regulated']
         down_list = df_diff[df_diff['Status'] == 'Down-regulated']
 
         st.subheader(f"🚀 Results: {st.session_state['tn']} vs {st.session_state['rn']}")
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total DEGs (FDR < {})".format(p_thr), len(df_diff))
+        # As métricas agora refletem apenas genes > 1 no -log10
+        m1.metric("Total DEGs (-log10 > 1)", len(df_diff))
         m2.metric("Up-Regulated 📈", len(up_list))
         m3.metric("Down-Regulated 📉", len(down_list))
 
         t1, t2, t3, t4 = st.tabs(["📊 Volcano & PCA", "🔝 Top DEGs", "🔥 Heatmap", "📋 Data Table"])
 
         with t1:
-            fig_v = px.scatter(res, x='Log2FC', y='-log10(FDR)', color='Status', color_discrete_map={'Not Significant': 'lightgrey', 'Up-regulated': 'red', 'Down-regulated': 'blue'}, hover_name='Symbol')
-            fig_v.add_vline(x=fc_thr, line_dash="dash"); fig_v.add_vline(x=-fc_thr, line_dash="dash")
-            fig_v.add_hline(y=-np.log10(p_thr), line_dash="dash")
-            st.session_state['fig_v'] = fig_v.update_layout(template="simple_white", height=500)
+            fig_v = px.scatter(
+                res, 
+                x='Log2FC', 
+                y='-log10(FDR)', 
+                color='Status', 
+                color_discrete_map={
+                    'Not Significant': '#cccccc', 
+                    'Up-regulated': 'firebrick', 
+                    'Down-regulated': 'dodgerblue'
+                }, 
+                hover_name='Symbol'
+            )
+            
+            fig_v.add_vline(x=fc_thr, line_dash="dash", line_color="black")
+            fig_v.add_vline(x=-fc_thr, line_dash="dash", line_color="black")
+            # Linha de corte visual em 1 (conforme seu critério de resultados)
+            fig_v.add_hline(y=1, line_dash="dash", line_color="black")
+            
+            # [CONFIGURAÇÃO: GRÁFICO INTEIRO DO ZERO PARA CIMA]
+            st.session_state['fig_v'] = fig_v.update_layout(
+                template="simple_white", 
+                height=600,
+                xaxis_title="log2 Fold Change",
+                yaxis_title="-log10 adjusted p-value",
+                yaxis=dict(
+                    tickmode='linear',
+                    tick0=0, # Começa as marcações no 0
+                    dtick=1, # Intervalo de 1 em 1
+                    range=[0, res['-log10(FDR)'].max() + 0.5], # Visualiza do ZERO absoluto
+                    showgrid=True,
+                    gridcolor='rgba(235, 235, 235, 0.5)'
+                ),
+                xaxis=dict(showgrid=True, gridcolor='rgba(235, 235, 235, 0.5)')
+            )
+            
             st.plotly_chart(st.session_state['fig_v'], width='stretch')
             
             try:
@@ -741,6 +778,6 @@ def run_app():
                 file_name=csv_name, 
                 mime="text/csv"
             )
-
+            
 if __name__ == '__main__':
     run_app()
