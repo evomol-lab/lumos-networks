@@ -83,12 +83,23 @@ g_res = st.session_state.get('g_res')
 # --- SIDEBAR: CONTROLES ---
 with st.sidebar:
     st.header("🔍 Busca e Filtros")
-    search_query = st.text_input("Localizar Gene ou Fator (TF):", "").strip().upper()
+    # A busca agora foca no destaque VERDE
+    search_query = st.text_input("Localizar Gene ou Fator (Destaque Verde):", "").strip().upper()
     
     st.divider()
     uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
     num_vias = st.slider("Quantidade de Clusters (Vias):", 2, 15, 6)
 
+# --- LEGENDA VISUAL FIXA ---
+st.markdown("""
+    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px;">
+        <h4 style="margin-top: 0;">📍 Legenda da Rede</h4>
+        <span style="color: #1C83E1; font-weight: bold;">● Círculo Azul:</span> Gene Alvo | 
+        <span style="color: #FF4B4B; font-weight: bold;">■ Quadrado Vermelho:</span> Fator de Transcrição | 
+        <span style="color: #FFD700; font-weight: bold;">⬢ Hexágono Amarelo:</span> Vias/Processos | 
+        <span style="color: #28B463; font-weight: bold;">★ Destaque Verde:</span> Item Pesquisado
+    </div>
+    """, unsafe_allow_html=True)
 
 if uploaded_files and (k_res is not None or g_res is not None):
     # --- 1. PROCESSAMENTO DE DADOS ---
