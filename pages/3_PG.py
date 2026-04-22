@@ -7,7 +7,7 @@ from streamlit_agraph import agraph, Node, Edge, Config
 st.set_page_config(page_title="Lumos Networks | PrioriGraph", page_icon="🕸️", layout="wide")
 st.set_page_config(layout="wide", page_title="PrioriGraph 👑")
 
-iBASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
 LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "Lumos Networks.png")
 
