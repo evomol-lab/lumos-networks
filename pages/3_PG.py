@@ -120,37 +120,51 @@ if uploaded_files and (k_res is not None or g_res is not None):
     # Seleção das Top Vias/Processos para os Clusters
     top_vias = pd.concat([k_res.head(num_vias), g_res.head(num_vias)]).sort_values('Adjusted P-value')
 
-    # --- 2. CONSTRUÇÃO DA REDE ---
+# --- CONSTRUÇÃO DA REDE ---
     nodes, edges, added = [], [], set()
 
     for _, row in top_vias.iterrows():
-        via_name = row['Term']
-        via_genes = set(str(row['Genes']).split(';'))
+        via_name = row['Term'].strip().upper() # Padroniza para busca
+        via_genes = set([g.strip().upper() for g in str(row['Genes']).split(';')])
         target_genes_in_via = via_genes.intersection(set(df_reg['Target']))
 
         if target_genes_in_via:
-            # Nó do Cluster (Via)
+            # 1. Nó de Via: Hexágono Amarelo (Destaque Verde se pesquisado)
             if via_name not in added:
-                nodes.append(Node(id=via_name, label=via_name[:35], size=40, color="#FFD700", shape="hexagon"))
+                # Verificação de busca blindada
+                is_via_search = (search_query != "" and search_query in via_name)
+                nodes.append(Node(id=via_name, 
+                                  label=via_name[:35], 
+                                  size=50 if is_via_search else 45, 
+                                  color="#28B463" if is_via_search else "#FFD700", 
+                                  shape="hexagon"))
                 added.add(via_name)
 
             for gene in target_genes_in_via:
-                # Nó do Gene Alvo
+                gene = gene.strip().upper()
+                # 2. Nó de Gene: Bola Azul (Destaque Verde se pesquisado)
                 if gene not in added:
-                    is_s = (gene == search_query)
-                    nodes.append(Node(id=gene, label=gene, size=45 if is_s else 18, 
-                                      color="#FFD700" if is_s else "#1C83E1", shape="dot"))
+                    is_g_search = (search_query != "" and search_query == gene)
+                    nodes.append(Node(id=gene, 
+                                      label=gene, 
+                                      size=45 if is_g_search else 20, 
+                                      color="#28B463" if is_g_search else "#1C83E1", 
+                                      shape="dot"))
                     added.add(gene)
                 
                 edges.append(Edge(source=via_name, target=gene, color="#FFD700", width=1, dashed=True))
 
-                # Conectar TFs reguladores
+                # 3. Nó de TF: Quadrado Vermelho (Destaque Verde se pesquisado)
                 rel_tfs = df_reg[df_reg['Target'] == gene]['TF'].unique()
                 for tf in rel_tfs:
+                    tf = tf.strip().upper()
                     if tf not in added:
-                        is_tf_s = (tf == search_query)
-                        nodes.append(Node(id=tf, label=tf, size=55 if is_tf_s else 30, 
-                                          color="#FFD700" if is_tf_s else "#FF4B4B", shape="diamond"))
+                        is_tf_search = (search_query != "" and search_query == tf)
+                        nodes.append(Node(id=tf, 
+                                          label=tf, 
+                                          size=55 if is_tf_search else 30, 
+                                          color="#28B463" if is_tf_search else "#FF4B4B", 
+                                          shape="square"))
                         added.add(tf)
                     edges.append(Edge(source=tf, target=gene, directed=True, color="#999"))
 
