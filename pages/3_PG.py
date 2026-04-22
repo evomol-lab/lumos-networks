@@ -3,38 +3,35 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from streamlit_agraph import agraph, Node, Edge, Config
-
-st.set_page_config(layout="wide", page_title="PrioriGraph")
-
 import os
-import streamlit as st
 
+# 1. Configuração ÚNICA
+st.set_page_config(page_title="Lumos Networks | PrioriGraph", page_icon="🕸️", layout="wide")
 
-# 1. Configuração da página (ajuste o título para cada módulo)
-st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
+# 2. Inicialização Preventiva (Evita o NameError)
+search_query = ""
 
-# 2. CSS para manter o padrão visual (Igual à Home)
+# 3. CSS Padronizado
 st.markdown("""
     <style>
-    [data-testid="stSidebarNav"] {display: none;} /* Esconde o menu original */
-    .stPageLink {
-        background-color: #f0f2f6;
-        border-radius: 20px;
-        padding: 8px;
-        border: 1px solid #e0e4eb;
-    }
-    .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; font-weight: bold; }
+    [data-testid="stSidebarNav"] {display: none;}
+    .stPageLink { background-color: #f0f2f6; border-radius: 20px; padding: 8px; border: 1px solid #e0e4eb; }
     </style>
     """, unsafe_allow_html=True)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
-LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "assets", "Lumos Networks.png")
-
-# --- SIDEBAR PADRONIZADA ---
+# --- SIDEBAR: CONFIGURAÇÕES E NAVEGAÇÃO ---
 with st.sidebar:
-    if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=250)
+    st.header("🔍 Busca e Filtros")
+    search_query = st.text_input("Localizar Gene ou TF:", "").strip().upper()
+    
+    st.divider()
+    st.header("📂 Entrada de Dados")
+    uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
+    
+    st.divider()
+    st.header("📐 Área do Grafo")
+    g_width = st.slider("Largura:", 600, 1800, 1100)
+    g_height = st.slider("Altura:", 400, 1200, 800)
     
     st.divider()
     st.markdown("### 🚀 Navegação")
@@ -57,37 +54,18 @@ with st.sidebar:
     st.divider()
     st.info("Você está no módulo de redes.")
 
-
-# 1. Localização atual: /code/src/pages/seu_script.py
-FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# 2. Subir UM nível para chegar na pasta 'src'
-PARENT_DIR = os.path.dirname(FILE_DIR)
-
-# 3. Apontar para o arquivo que está solto na 'src'
-logo_path = os.path.join(PARENT_DIR, "assets", "PG.png")
-
-with st.sidebar:
-    if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
-
-# ============================================================
-# INTERFACE PRINCIPAL LÓGICA DE INTEGRAÇÃO 
-# ============================================================
-# --- RECUPERAÇÃO DE DADOS DO APP ---
+# --- RECUPERAÇÃO DE DADOS DO APP (KEGG, GO, STRING) ---
 k_res = st.session_state.get('k_res')
 g_res = st.session_state.get('g_res')
 s_df = st.session_state.get('string_df')
 
 st.title("PrioriGraph 👑")
 if k_res is not None or g_res is not None:
-    st.success("🔗 Integração Ativa: Impacto calculado via KEGG/GO/STRING.")
+    st.success("🔗 Multi-omics Ativa: Impacto calculado com base em KEGG e GO.")
 else:
-    st.info("💡 Dica: Rode o módulo APP para ativar o cálculo de Impacto Funcional.")
+    st.info("💡 Dica: Execute o módulo APP para gerar os pesos biológicos dos reguladores.")
 
-# --- CARGA DE ARQUIVOS ---
-uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
-
+# --- PROCESSAMENTO ---
 if uploaded_files:
     all_interactions = []
     for f in uploaded_files:
@@ -119,43 +97,44 @@ if uploaded_files:
 
     impact_map = {tf: get_impact_score(tf, df_final) for tf in tfs_list}
 
-    # --- CONSTRUÇÃO DOS NÓS E ARESTAS ---
+    # --- CONSTRUÇÃO VISUAL ---
     nodes, edges, nodes_added = [], [], set()
     for _, row in df_final.iterrows():
         tf, target = row['TF'], row['Target']
         
-        # Nó do TF
+        # Nó do Fator de Transcrição
         if tf not in nodes_added:
             imp = impact_map.get(tf, 1)
+            # Ouro para TFs de alto impacto biológico
             color = "#FFD700" if imp > 8 else "#FF4B4B"
             nodes.append(Node(id=tf, label=f"{tf} (Imp: {imp})", size=25+(imp*2), color=color, shape="diamond"))
             nodes_added.add(tf)
 
-        # Nó do Target
+        # Nó do Gene Alvo
         if target not in nodes_added:
-            is_search = search_query == target
+            is_search = (search_query != "" and search_query == target)
             nodes.append(Node(id=target, label=target, size=40 if is_search else 15, color="#FFD700" if is_search else "#1C83E1"))
             nodes_added.add(target)
         
         edges.append(Edge(source=tf, target=target, directed=True, color="#999"))
 
-    # Renderização Estática (Sem movimento louco)
+    # Configuração da Rede (physics=False para travar o movimento)
     config = Config(width=g_width, height=g_height, directed=True, physics=False, hierarchical=False)
     agraph(nodes=nodes, edges=edges, config=config)
 
-    # --- RESTORE DAS FUNÇÕES LEGAIS (Rankings) ---
+    # --- RANKINGS (FUNÇÕES ANTIGAS RESTAURADAS) ---
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("🏆 Master Regulators (Out-Degree)")
         m_rank = df_final['TF'].value_counts().reset_index()
-        m_rank.columns = ['TF', 'Genes Regulados']
+        m_rank.columns = ['Fator de Transcrição', 'Nº de Alvos']
         st.dataframe(m_rank, use_container_width=True)
     with c2:
         st.subheader("🎯 Genetic Hubs (In-Degree)")
         h_rank = df_final['Target'].value_counts().reset_index()
-        h_rank.columns = ['Gene', 'Reguladores']
+        h_rank.columns = ['Gene Alvo', 'Nº de Reguladores']
         st.dataframe(h_rank, use_container_width=True)
 
 else:
-    st.info("Aguardando upload de CSVs para gerar a rede.")
+    st.info("Aguardando upload de tabelas regulatórias para gerar o PrioriGraph.")
