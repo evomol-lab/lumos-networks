@@ -74,27 +74,19 @@ with st.sidebar:
 # ============================================================
 # INTERFACE PRINCIPAL LÓGICA DE INTEGRAÇÃO 
 # ============================================================
+# --- RECUPERAÇÃO DE DADOS DO APP ---
+k_res = st.session_state.get('k_res')
+g_res = st.session_state.get('g_res')
+s_df = st.session_state.get('string_df')
 
 st.title("PrioriGraph 👑")
-st.markdown("### Integração de Redes: Impacto de TFs em Processos Biológicos")
-
-# 1. Recuperar dados do módulo APP
-k_res = st.session_state.get('k_res')   # KEGG
-g_res = st.session_state.get('g_res')   # GO
-s_df = st.session_state.get('string_df') # STRING
-
-# Aviso de status da integração
 if k_res is not None or g_res is not None:
-    st.success("✅ Conectado aos dados funcionais do módulo APP!")
+    st.success("🔗 Integração Ativa: Impacto calculado via KEGG/GO/STRING.")
 else:
-    st.warning("⚠️ Dados do APP não encontrados. Rode o módulo 2 (APP) primeiro para ver o impacto real.")
+    st.info("💡 Dica: Rode o módulo APP para ativar o cálculo de Impacto Funcional.")
 
-with st.sidebar:
-    st.header("📂 1. Carga de Dados")
-    uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
-    search_query = st.text_input("🔍 Localizar na Rede (Gene/TF):", "").strip().upper()
-    g_width = st.slider("Largura:", 600, 1800, 1000)
-    g_height = st.slider("Altura:", 400, 1200, 700)
+# --- CARGA DE ARQUIVOS ---
+uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
     all_interactions = []
@@ -113,33 +105,33 @@ if uploaded_files:
     df_final['Target'] = df_final['Target'].astype(str).str.upper()
     tfs_list = set(df_final['TF'].unique())
 
-    # --- MOTOR DE CÁLCULO DE IMPACTO ---
-    def get_integrated_weight(tf_name, interactions_df):
-        my_targets = set(interactions_df[interactions_df['TF'] == tf_name]['Target'])
+    # --- MOTOR DE IMPACTO ---
+    def get_impact_score(tf_name, df_int):
+        my_targets = set(df_int[df_int['TF'] == tf_name]['Target'])
         score = 0
-        if k_res is not None: # Bônus KEGG
-            for _, row in k_res.iterrows():
-                if my_targets.intersection(set(str(row['Genes']).split(';'))): score += 2
-        if g_res is not None: # Bônus GO
-            for _, row in g_res.iterrows():
-                if my_targets.intersection(set(str(row['Genes']).split(';'))): score += 1
-        if s_df is not None: # Bônus STRING
-            if tf_name in set(s_df['preferredName_A']).union(set(s_df['preferredName_B'])): score += 3
+        if k_res is not None:
+            for _, r in k_res.iterrows():
+                if my_targets.intersection(set(str(r['Genes']).split(';'))): score += 2
+        if g_res is not None:
+            for _, r in g_res.iterrows():
+                if my_targets.intersection(set(str(r['Genes']).split(';'))): score += 1
         return max(1, score)
 
-    tf_impact_map = {tf: get_integrated_weight(tf, df_final) for tf in tfs_list}
+    impact_map = {tf: get_impact_score(tf, df_final) for tf in tfs_list}
 
-    # --- CONSTRUÇÃO DA REDE ---
+    # --- CONSTRUÇÃO DOS NÓS E ARESTAS ---
     nodes, edges, nodes_added = [], [], set()
     for _, row in df_final.iterrows():
         tf, target = row['TF'], row['Target']
         
+        # Nó do TF
         if tf not in nodes_added:
-            imp = tf_impact_map.get(tf, 1)
-            color = "#FFD700" if imp > 10 else "#FF4B4B"
+            imp = impact_map.get(tf, 1)
+            color = "#FFD700" if imp > 8 else "#FF4B4B"
             nodes.append(Node(id=tf, label=f"{tf} (Imp: {imp})", size=25+(imp*2), color=color, shape="diamond"))
             nodes_added.add(tf)
 
+        # Nó do Target
         if target not in nodes_added:
             is_search = search_query == target
             nodes.append(Node(id=target, label=target, size=40 if is_search else 15, color="#FFD700" if is_search else "#1C83E1"))
@@ -147,7 +139,23 @@ if uploaded_files:
         
         edges.append(Edge(source=tf, target=target, directed=True, color="#999"))
 
-    config = Config(width=g_width, height=g_height, directed=True, physics=True)
+    # Renderização Estática (Sem movimento louco)
+    config = Config(width=g_width, height=g_height, directed=True, physics=False, hierarchical=False)
     agraph(nodes=nodes, edges=edges, config=config)
+
+    # --- RESTORE DAS FUNÇÕES LEGAIS (Rankings) ---
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("🏆 Master Regulators (Out-Degree)")
+        m_rank = df_final['TF'].value_counts().reset_index()
+        m_rank.columns = ['TF', 'Genes Regulados']
+        st.dataframe(m_rank, use_container_width=True)
+    with c2:
+        st.subheader("🎯 Genetic Hubs (In-Degree)")
+        h_rank = df_final['Target'].value_counts().reset_index()
+        h_rank.columns = ['Gene', 'Reguladores']
+        st.dataframe(h_rank, use_container_width=True)
+
 else:
-    st.info("Aguardando upload dos arquivos CSV.")
+    st.info("Aguardando upload de CSVs para gerar a rede.")
