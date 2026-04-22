@@ -160,6 +160,9 @@ if uploaded_files:
         if c_p.button("🌐 Gerar Rede Master"):
             top_genes_list = df_sig.sort_values(by='Log2FC', key=abs, ascending=False).head(max_n)['Symbol'].tolist()
             string_df = fetch_string_network(top_genes_list, conf, max_n)
+
+            if not string_df.empty:
+                st.session_state['string_df'] = string_df # Salva para o cálculo de peso no PG
             
             if not string_df.empty:
                 nodes, edges, nodes_added = [], [], set()
