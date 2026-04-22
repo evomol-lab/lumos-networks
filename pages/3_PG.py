@@ -8,10 +8,10 @@ st.set_page_config(layout="wide", page_title="PrioriGraph")
 import os
 import streamlit as st
 
-# 1. Configuração da página (ajuste o título para cada módulo)
+# 1. Configuração da página 
 st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
 
-# 2. CSS para manter o padrão visual (Igual à Home)
+# 2. CSS para manter o padrão visual
 st.markdown("""
     <style>
     [data-testid="stSidebarNav"] {display: none;} /* Esconde o menu original */
@@ -59,10 +59,10 @@ with st.sidebar:
 # 1. Localização atual: /code/src/pages/seu_script.py
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 2. Subir UM nível para chegar na pasta 'src'
+# 2. Subir UM nível
 PARENT_DIR = os.path.dirname(FILE_DIR)
 
-# 3. Apontar para o arquivo que está solto na 'src'
+# 3. Apontar para o arquivo 
 logo_path = os.path.join(PARENT_DIR, "assets", "PG.png")
 
 with st.sidebar:
