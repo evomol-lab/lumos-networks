@@ -137,6 +137,9 @@ if uploaded_files:
 
     k_res = run_enrichr(unique_symbols, 'KEGG_2021_Human')
     g_res = run_enrichr(unique_symbols, 'GO_Biological_Process_2023')
+     
+    st.session_state['k_res'] = k_res  # Salva KEGG
+    st.session_state['g_res'] = g_res  # Salva GO
 
     with tab1:
         c1, c2 = st.columns(2)
