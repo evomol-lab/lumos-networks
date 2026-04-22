@@ -3,13 +3,27 @@ import pandas as pd
 import numpy as np
 from streamlit_agraph import agraph, Node, Edge, Config
 
-# 1. Configuração ÚNICA
-st.set_page_config(page_title="Lumos Networks | PrioriGraph", page_icon="🕸️", layout="wide")
-st.set_page_config(layout="wide", page_title="PrioriGraph 👑")
+# Configuração ÚNICA
+st.set_page_config(layout="wide", page_title="PrioriGraph  👑")
+# Configuração da página (ajuste o título para cada módulo)
+st.set_page_config(page_title="Lumos Networks | REDES", page_icon="🕸️", layout="wide")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
-LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "Lumos Networks.png")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Pasta 'pages'
+PARENT_DIR = os.path.dirname(BASE_DIR) # Raiz do projeto
+LOGO_PATH = os.path.join(PARENT_DIR, "assets", "Lumos Networks.png")
+
+st.markdown("""
+    <style>
+    [data-testid="stSidebarNav"] {display: none;} /* Esconde o menu original */
+    .stPageLink {
+        background-color: #f0f2f6;
+        border-radius: 20px;
+        padding: 8px;
+        border: 1px solid #e0e4eb;
+    }
+    .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; font-weight: bold; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- SIDEBAR PADRONIZADA ---
 with st.sidebar:
@@ -45,7 +59,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(FILE_DIR)
 
 # 3. Apontar para o arquivo que está solto na 'src'
-logo_path = os.path.join(PARENT_DIR, "PG.png")
+logo_path = os.path.join(PARENT_DIR, "assets", "PG.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
