@@ -133,42 +133,82 @@ if uploaded_files:
         st.error("Nenhuma coluna compatível encontrada.")
         st.stop()
         
+    # === 1. CONSOLIDAÇÃO DOS DADOS ===
     df_final = pd.concat(all_interactions).drop_duplicates()
     df_final['TF'] = df_final['TF'].astype(str).str.strip().str.upper()
     df_final['Target'] = df_final['Target'].astype(str).str.strip().str.upper()
-
-    # 1. Gráfico de Interação (Master Regulators por FDR)
-    if plot_data_list:
-        st.subheader("📊 Significância Regulatória (Top TFs)")
-        df_plot = pd.concat(plot_data_list).drop_duplicates()
-        df_plot['-log10(FDR)'] = -np.log10(df_plot['Adjusted P-value'] + 1e-10)
-        df_plot = df_plot.sort_values('-log10(FDR)', ascending=False).head(15)
-        fig = px.bar(df_plot, x='-log10(FDR)', y=df_plot.columns[0], orientation='h', 
-                     color='Adjusted P-value', color_continuous_scale='Viridis_r')
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 2. Rede Agraph
-    nodes, edges, nodes_added = [], [], set()
     tfs_list = set(df_final['TF'].unique())
 
+    # === 2. MOTOR DE INTEGRAÇÃO (A "MAGIA" ÚNICA) ===
+    # Recuperamos os resultados salvos no st.session_state pelos módulos anteriores
+    k_res = st.session_state.get('k_res')       # Vias KEGG (do APP)
+    g_res = st.session_state.get('g_res')       # Processos GO (do APP)
+    s_df = st.session_state.get('string_df')    # Rede STRING (do APP)
+
+    def get_integrated_weight(tf_name, interactions_df):
+        # Genes alvos que este TF regula nesta rede
+        my_targets = set(interactions_df[interactions_df['TF'] == tf_name]['Target'])
+        if not my_targets: return 1
+        
+        score = 0
+        # Bônus KEGG: Se os alvos do TF estão em vias metabólicas
+        if k_res is not None:
+            for _, row in k_res.iterrows():
+                if my_targets.intersection(set(str(row['Genes']).split(';'))):
+                    score += 2
+        
+        # Bônus GO: Se os alvos do TF participam de processos biológicos
+        if g_res is not None:
+            for _, row in g_res.iterrows():
+                if my_targets.intersection(set(str(row['Genes']).split(';'))):
+                    score += 1
+        
+        # Bônus STRING: Se o TF tem interação física comprovada
+        if s_df is not None:
+            string_genes = set(s_df['preferredName_A']).union(set(s_df['preferredName_B']))
+            if tf_name in string_genes:
+                score += 3
+                
+        return max(1, score)
+
+    # Calculamos o peso de impacto para cada TF
+    tf_impact_map = {tf: get_integrated_weight(tf, df_final) for tf in tfs_list}
+
+    # === 3. CONSTRUÇÃO DA REDE VISUAL (AGRAPH) ===
+    nodes, edges, nodes_added = [], [], set()
+
+    # Primeiro, criamos as conexões (Arestas)
     for _, row in df_final.iterrows():
         tf, target = row['TF'], row['Target']
-        if tf == 'NAN' or target == 'NAN' or not tf or not target: continue
+        if tf == 'NAN' or target == 'NAN': continue
 
-        for n in [tf, target]:
-            if n not in nodes_added:
-                color = "#FF4B4B" if n in tfs_list else "#1C83E1"
-                size, stroke_w, stroke_c = 20, 1, "#333"
-                if search_query and search_query == n:
-                    color, size, stroke_w, stroke_c = "#FFD700", 45, 3, "#000"
-                nodes.append(Node(id=n, label=n, size=size, color=color, strokeWidth=stroke_w, strokeColor=stroke_c))
-                nodes_added.add(n)
+        # Criar Nó do TF (Diamante)
+        if tf not in nodes_added:
+            impacto = tf_impact_map.get(tf, 1)
+            # Dourado se impacto > 10 (Mestre Regulador), senão Vermelho
+            color = "#FFD700" if impacto > 10 else "#FF4B4B" 
+            size = 25 + (impacto * 2) # Tamanho proporcional à importância biológica
+            nodes.append(Node(id=tf, label=f"{tf} (Impacto: {impacto})", 
+                              size=size, color=color, shape="diamond"))
+            nodes_added.add(tf)
+
+        # Criar Nó do Gene Alvo (Círculo)
+        if target not in nodes_added:
+            # Destaque se for o gene pesquisado na sidebar
+            is_search = search_query and search_query == target
+            color = "#FFD700" if is_search else "#1C83E1"
+            size = 40 if is_search else 15
+            nodes.append(Node(id=target, label=target, size=size, color=color, shape="dot"))
+            nodes_added.add(target)
+
+        # Criar a linha de conexão
         edges.append(Edge(source=tf, target=target, directed=True, color="#999"))
 
-    st.subheader("🕸️ Rede Regulatória Integrada")
+    # === 4. EXIBIÇÃO DA REDE ===
+    st.subheader("🕸️ Rede Regulatória com Carga Funcional (KEGG + GO + STRING)")
     config = Config(width=g_width, height=g_height, directed=True, physics=False, hierarchical=False)
     agraph(nodes=nodes, edges=edges, config=config)
-
+    
     # 3. Rankings Decrescentes
     st.divider()
     col_rank1, col_rank2 = st.columns(2)
@@ -189,4 +229,3 @@ if uploaded_files:
 
 else:
     st.info("Aguardando upload dos arquivos CSV.")
-    
