@@ -9,39 +9,46 @@ import gzip
 import io
 import re
 import gc
-import tarfile
 import os
 from datetime import datetime
 from fpdf import FPDF
 from Bio import Entrez
-import statsmodels.api as sm
 from statsmodels.stats.multitest import fdrcorrection
-import itertools
 from sklearn.decomposition import PCA
 
-from pydeseq2.dds import DeseqDataSet
-from pydeseq2.ds import DeseqStats
+# --- BLOCO DE IMPORTAÇÃO UNIFICADO E PROTEGIDO ---
+try:
+    # Para pydeseq2 >= 0.4.0, o DeseqDataSet fica em .dds
+    from pydeseq2.dds import DeseqDataSet
+    from pydeseq2.ds import DeseqStats
+    HAS_DESEQ2 = True
+except ImportError:
+    HAS_DESEQ2 = False
 
-# 1. Configuração da página (ajuste o título para cada módulo)
+# 1. Configuração da página
 st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
 
-# 2. CSS para manter o padrão visual (Igual à Home)
+# 2. Configurações de API e Headers
+HEADERS = {'User-Agent': 'DDEA/4.0 (Streamlit App; Academic Version)'}
+Entrez.email = "ddea.tool@example.com"
+
+# 3. Gerenciamento de Caminhos e Logo
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Pasta 'pages'
+PARENT_DIR = os.path.dirname(BASE_DIR) # Raiz do projeto
+LOGO_PATH = os.path.join(PARENT_DIR, "assets", "Lumos Networks.png")
+
+# 4. CSS Estilizado
 st.markdown("""
     <style>
-    [data-testid="stSidebarNav"] {display: none;} /* Esconde o menu original */
+    [data-testid="stSidebarNav"] {display: none;}
     .stPageLink {
         background-color: #f0f2f6;
         border-radius: 20px;
         padding: 8px;
         border: 1px solid #e0e4eb;
     }
-    .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Como os módulos estão dentro de 'pages', subimos um nível para achar a logo
-LOGO_PATH = os.path.join(os.path.dirname(BASE_DIR), "assets", "Lumos Networks.png")
 
 # --- SIDEBAR PADRONIZADA ---
 with st.sidebar:
@@ -69,15 +76,6 @@ with st.sidebar:
     st.divider()
     st.info("Você está no módulo de análise.")
     
-# Impede erros de importação se as bibliotecas não estiverem presentes
-try:
-    HAS_DESEQ2 = True
-except ImportError:
-    HAS_DESEQ2 = False
-HEADERS = {'User-Agent': 'DDEA/4.0 (Streamlit App; Academic Version)'}
-Entrez.email = "ddea.tool@example.com"
-
-
 import os
 import streamlit as st
 
