@@ -8,7 +8,7 @@ st.set_page_config(layout="wide", page_title="PrioriGraph  👑")
 # Configuração da página (ajuste o título para cada módulo)
 st.set_page_config(page_title="Lumos Networks | REDES", page_icon="🕸️", layout="wide")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Pasta 'pages'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(BASE_DIR) # Raiz do projeto
 LOGO_PATH = os.path.join(PARENT_DIR, "assets", "Lumos Networks.png")
 
