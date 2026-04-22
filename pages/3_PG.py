@@ -2,19 +2,21 @@ import streamlit as st
 import pandas as pd
 from streamlit_agraph import agraph, Node, Edge, Config
 
-# 1. Recuperação de Dados
+# 1. Recuperação de Dados do APP (Sincronização)
 k_res = st.session_state.get('k_res')
 g_res = st.session_state.get('g_res')
 
-st.title("PrioriGraph 👑 | Cluster Edition")
+st.title("PrioriGraph 👑 | Clusters Biológicos")
 
 with st.sidebar:
-    st.header("📂 Entrada")
+    st.header("📂 Entrada e Filtros")
     uploaded_files = st.file_uploader("Upload JASPAR/TRRUST", type=['csv'], accept_multiple_files=True)
-    num_vias = st.slider("Quantidade de Vias para Agrupar:", 3, 15, 5)
+    num_vias = st.slider("Quantidade de Clusters (Vias):", 2, 10, 4)
+    st.divider()
+    st.info("A física foi desligada para evitar movimentação excessiva.")
 
 if uploaded_files and (k_res is not None or g_res is not None):
-    # Processamento dos Reguladores
+    # Processamento de Dados dos Reguladores
     all_data = []
     for f in uploaded_files:
         temp = pd.read_csv(f)
@@ -26,52 +28,68 @@ if uploaded_files and (k_res is not None or g_res is not None):
     
     df_reg = pd.concat(all_data).drop_duplicates()
     
-    # Seleção das Top Vias para criar os Clusters
+    # Seleção das Top Vias (Cluster Centers)
     top_vias = pd.concat([k_res.head(num_vias), g_res.head(num_vias)]).sort_values('Adjusted P-value')
 
     nodes, edges, added = [], [], set()
 
-    # --- CRIAR CLUSTERS (Nós de Via/Processo) ---
+    # --- LÓGICA DE CONSTRUÇÃO DOS CLUSTERS ---
     for i, row in top_vias.iterrows():
-        via_id = row['Term']
+        via_name = row['Term']
         via_genes = set(str(row['Genes']).split(';'))
         
-        # Nó da Via (O Sol do Cluster)
-        if via_id not in added:
-            nodes.append(Node(id=via_id, label=via_id[:30]+"...", size=40, 
-                              color="#FFD700", shape="hexagon", shadow=True))
-            added.add(via_id)
+        # 1. Nó do Cluster (O Processo Biológico)
+        if via_name not in added:
+            nodes.append(Node(id=via_name, 
+                              label=via_name[:40], 
+                              size=45, 
+                              color="#FFD700", 
+                              shape="hexagon"))
+            added.add(via_name)
 
-        # Conectar Genes da Via ao Centro do Cluster
-        # Filtramos para mostrar apenas genes que também estão na sua rede de TFs
-        genes_na_rede = via_genes.intersection(set(df_reg['Target']))
+        # 2. Genes que pertencem a este cluster
+        # Filtramos apenas genes que aparecem na rede de regulação
+        target_genes_in_via = via_genes.intersection(set(df_reg['Target']))
         
-        for gene in genes_na_rede:
+        for gene in target_genes_in_via:
             if gene not in added:
-                nodes.append(Node(id=gene, label=gene, size=15, color="#1C83E1", shape="dot"))
+                nodes.append(Node(id=gene, label=gene, size=18, color="#1C83E1", shape="dot"))
                 added.add(gene)
-            # Aresta: Via -> Gene (Mostra a pertinência funcional)
-            edges.append(Edge(source=via_id, target=gene, color="#FFD700", width=2, label="pertence"))
-
-    # --- CONECTAR TFs AOS CLUSTERS ---
-    for _, row in df_reg.iterrows():
-        tf, target = row['TF'].upper(), row['Target'].upper()
-        
-        if target in added: # Só desenha TFs que regulam genes das vias selecionadas
-            if tf not in added:
-                nodes.append(Node(id=tf, label=tf, size=30, color="#FF4B4B", shape="diamond"))
-                added.add(tf)
             
-            # Aresta: TF -> Gene (Ação regulatória)
-            edges.append(Edge(source=tf, target=target, directed=True, color="#999"))
+            # Ligação Funcional (Via -> Gene)
+            edges.append(Edge(source=via_name, target=gene, color="#FFD700", width=1.5, dashed=True))
 
-    # Configuração de Layout
-    # Usamos hierarchical=False para permitir que os clusters se formem naturalmente
-    config = Config(width=1100, height=800, directed=True, physics=True, 
-                    stabilization=True, hierarchical=False)
+            # 3. Encontrar TFs que regulam este gene específico
+            tfs_regulators = df_reg[df_reg['Target'] == gene]['TF'].unique()
+            for tf in tfs_regulators:
+                if tf not in added:
+                    nodes.append(Node(id=tf, label=tf, size=30, color="#FF4B4B", shape="diamond"))
+                    added.add(tf)
+                
+                # Ligação Regulatória (TF -> Gene)
+                edges.append(Edge(source=tf, target=gene, directed=True, color="#999"))
+
+    # CONFIGURAÇÃO CRÍTICA: physics=False para parar o movimento
+    config = Config(
+        width=1100, 
+        height=800, 
+        directed=True, 
+        physics=False,  # <--- ISOLAMENTO DO MOVIMENTO
+        hierarchical=False,
+        stabilization=True
+    )
     
-    st.info(f"Rede clusterizada em torno das {num_vias} principais vias detectadas no APP.")
+    st.subheader(f"Visualização de {num_vias} Clusters de Vias e Processos")
     agraph(nodes=nodes, edges=edges, config=config)
 
+    # --- TABELA DE APOIO ---
+    st.divider()
+    st.subheader("📋 Resumo dos Clusters")
+    summary = []
+    for i, row in top_vias.iterrows():
+        v_genes = set(str(row['Genes']).split(';')).intersection(set(df_reg['Target']))
+        summary.append({"Processo": row['Term'], "Genes na Rede": len(v_genes), "FDR": row['Adjusted P-value']})
+    st.table(pd.DataFrame(summary))
+
 else:
-    st.warning("⚠️ Para ver os clusters, você precisa: 1. Rodar o APP e 2. Subir os CSVs aqui.")
+    st.warning("⚠️ Dados insuficientes. Certifique-se de carregar os CSVs e ter rodado o APP primeiro.")
