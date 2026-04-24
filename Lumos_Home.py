@@ -102,7 +102,7 @@ st.markdown("""
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.markdown('<h2 class="section-header">Sobre o Projeto</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">About the project</h2>', unsafe_allow_html=True)
     st.write("""
     **Lumos Networks** is a bioinformatics suite designed to streamline the transition from raw sequencing 
     data to systemic biological interpretation. Developed at **EvoMol-Lab**, the system integrates statistical rigor, 
