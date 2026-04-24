@@ -217,4 +217,4 @@ if uploaded_files and (k_res is not None or g_res is not None):
         st.table(pd.DataFrame(mapping_rows))
 
 else:
-    st.info("💡 Please upload the regulatory CSV files. Make sure you have processed the data in the APP module before uploading the clusters.")
+    st.info("💡 Please, upload the regulatory CSV files. Make sure you have processed the data in the APP module before uploading the clusters.")
