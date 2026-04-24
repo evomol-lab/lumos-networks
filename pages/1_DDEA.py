@@ -26,7 +26,7 @@ except ImportError:
     HAS_DESEQ2 = False
 
 # 1. Configuração da página
-st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="Lumos Networks | Analysis", page_icon="🧬", layout="wide")
 
 # 2. Configurações de API e Headers
 HEADERS = {'User-Agent': 'DDEA/4.0 (Streamlit App; Academic Version)'}
@@ -56,25 +56,25 @@ with st.sidebar:
         st.image(LOGO_PATH, width=250)
     
     st.divider()
-    st.markdown("### 🚀 Navegação")
+    st.markdown("### 🚀 Navigation")
     
     # IMPORTANTE: Caminhos saindo da pasta 'pages'
-    st.page_link("Lumos_Home.py", label="Página Inicial", icon="🏠")
+    st.page_link("Lumos_Home.py", label="Home Page", icon="🏠")
     
-    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Análise</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Analysis</p>', unsafe_allow_html=True)
     st.page_link("pages/1_DDEA.py", label="DDEA", icon="📈")
     
-    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Funcional</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Functional</p>', unsafe_allow_html=True)
     st.page_link("pages/2_APP.py", label="APP", icon="🧪")
     
-    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Redes</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Networks</p>', unsafe_allow_html=True)
     st.page_link("pages/3_PG.py", label="PG", icon="🕸️")
 
-    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentação</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentation</p>', unsafe_allow_html=True)
     st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
 
     st.divider()
-    st.info("Você está no módulo de análise.")
+    st.info("You are in the analysis module.")
     
 import os
 import streamlit as st
@@ -118,7 +118,7 @@ class PDF(FPDF):
                 # Registra Bold (B)
                 if os.path.exists(self.font_paths['Bold']):
                     self.add_font('DejaVu', 'B', self.font_paths['Bold'])
-                # Registra Italic (I) - RESOLVE O ERRO ATUAL
+                # Registra Italic (I)
                 if os.path.exists(self.font_paths['Italic']):
                     self.add_font('DejaVu', 'I', self.font_paths['Italic'])
                 
@@ -434,7 +434,7 @@ def run_app():
 
             st.header("2. Parameters")
             extra_selected = st.multiselect(
-            "Informações no seletor:", 
+            "Information on the selector:", 
             [c for c in meta_df_cols if c != 'Accession'], 
             default=default_cols
             )
@@ -442,12 +442,12 @@ def run_app():
 
             st.divider()
             st.header("2. Parameters")
-            apply_log = st.checkbox("Aplicar Log2 (Desmarque se os dados já estiverem em log)", value=True)
+            apply_log = st.checkbox("Apply Log2 (Uncheck if the data is already logged)", value=True)
             gene_area = st.text_area("Genes Highlight (1 per line):")
             p_thr = st.slider("FDR threshold (P-adj):", 0.001, 0.10, 0.05, format="%.3f")
             fc_thr = st.slider("Min Abs Log2FC:", 0.0, 10.0, 1.0, step=0.1)
-            use_limma = st.checkbox("Usar modelo linear", value=True) if mode == "Microarray" else False
-            max_plot = st.number_input("Top genes p/ Heatmap:", value=50, min_value=5)
+            use_limma = st.checkbox("Use a linear model", value=True) if mode == "Microarray" else False
+            max_plot = st.number_input("Top genes for the heatmap:", value=50, min_value=5)
 
             st.header("3. Export Report")
             if st.session_state.get('analysis_done'):
@@ -460,9 +460,9 @@ def run_app():
                         {"type": "metric", "label": "Total DEGs Found", "value": str(len(st.session_state.get('df_diff', []))), "part": 1},
             
                         # Gráficos principais
-                        {"type": "plot", "title": "Volcano Plot", "fig": st.session_state.get('fig_v'), "caption": "Distribuição global da expressão diferencial.", "part": 1},
-                        {"type": "plot", "title": "PCA Analysis", "fig": st.session_state.get('fig_pca'), "caption": "Agrupamento das amostras por componentes principais.", "part": 3},
-                        {"type": "plot", "title": "Expression Heatmap", "fig": st.session_state.get('fig_h'), "caption": f"Top {max_plot} genes diferencialmente expressos.", "part": 3}
+                        {"type": "plot", "title": "Volcano Plot", "fig": st.session_state.get('fig_v'), "caption": "Global distribution of differential expression.", "part": 1},
+                        {"type": "plot", "title": "PCA Analysis", "fig": st.session_state.get('fig_pca'), "caption": "Clustering of samples by principal components.", "part": 3},
+                        {"type": "plot", "title": "Expression Heatmap", "fig": st.session_state.get('fig_h'), "caption": f"Top {max_plot} differentially expressed genes.", "part": 3}
                     ]
         
                     with st.spinner("Gerando PDF..."):
@@ -475,13 +475,13 @@ def run_app():
                             width='stretch'
                         )
             else:
-                st.info("Execute a análise (Run Analysis) para habilitar o relatório.")
+                st.info("Click “Run Analysis” to enable the report.")
         else:
             label_cols = ['Accession', 'Title']; gene_area = ""; p_thr = 0.05; fc_thr = 1.0; use_limma = False; max_plot = 50; apply_log = True
 
     # ---- FETCH LOGIC ----
     if fetch_btn and gse_input:
-        with st.spinner("🚀 Buscando dados..."):
+        with st.spinner("🚀 Retrieving data..."):
             df, meta_df, gsms, gsm_order, source, err, detected_type = get_geo_full_data(gse_input.strip(), mode)
             if meta_df is not None:
                 keys_to_reset = ['analysis_done', 'res', 'norm_df', 'df_diff', 'groups', 
@@ -539,7 +539,7 @@ def run_app():
 
     # ---- UPLOAD MANUAL MULTI-FILE ----
     if st.session_state.get('df') is None:
-        st.warning("📦 Matriz não encontrada. Faça upload de UM ou MAIS arquivos de contagem.")
+        st.warning("📦 Template not found. Please upload ONE or MORE count files.")
         up_files = st.file_uploader("Upload counts files", accept_multiple_files=True)
         if up_files:
             combined_df = pd.DataFrame()
@@ -560,11 +560,11 @@ def run_app():
         group_names = list(st.session_state['groups'].keys())
         
         c1, c2 = st.columns(2)
-        ref_g = c1.selectbox("Referência (Controle):", group_names)
-        test_g = c2.selectbox("Teste:", [g for g in group_names if g != ref_g])
+        ref_g = c1.selectbox("Reference (Control):", group_names)
+        test_g = c2.selectbox("Test:", [g for g in group_names if g != ref_g])
 
         if st.button("🔥 Run Analysis", width='stretch'):
-            with st.spinner("Processando Estatística Acadêmica..."):
+            with st.spinner("Processing Academic Statistics..."):
                 
                 # BUSCA FLEXÍVEL DE COLUNAS
                 def find_col(gsm_id, columns):
@@ -576,7 +576,7 @@ def run_app():
                 c_test = [c for c in [find_col(label_to_gsm[lab], matrix_cols) for lab in st.session_state['groups'][test_g]] if c]
 
                 if not c_ref or not c_test:
-                    st.error(f"❌ Erro de Mapeamento. Colunas disponíveis na matriz: {list(matrix_cols)[:5]}")
+                    st.error(f"❌ Mapping error. Columns available in the matrix: {list(matrix_cols)[:5]}")
                     st.stop()
 
                 # [TRECHO ATUALIZADO]
@@ -593,7 +593,7 @@ def run_app():
                 df_sub = df_sub[mask_keep]
                 
                 if df_sub.empty:
-                    st.error("❌ A filtragem removeu todos os genes. Verifique a escala dos dados.")
+                    st.error("❌ The filtering removed all genes. Check the data scale.")
                     st.stop()
 
                 data_vals = df_sub.values.astype(np.float32)
@@ -635,7 +635,7 @@ def run_app():
                         import gc
                         gc.collect() # Limpeza de RAM crítica para Streamlit Cloud
                     except Exception as e:
-                        st.warning("⚠️ Memória insuficiente para VST. Usando Log2 para visualização.")
+                        st.warning("⚠️ Insufficient memory for VST. Using Log2 for visualization.")
                         pca_input = np.log2(df_sub.T + 1)
                     
                     # 4. Resultados Estatísticos
@@ -776,7 +776,7 @@ def run_app():
             st.dataframe(df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']], width='stretch')
             csv_name = f"{st.session_state.get('gse_id', 'DEGs')}_results.csv"
             st.download_button(
-                label="📥 Baixar CSV", 
+                label="📥 Download CSV", 
                 data=df_diff[['Symbol', 'Log2FC', 'FDR', 'Status']].to_csv(index=False), 
                 file_name=csv_name, 
                 mime="text/csv"
