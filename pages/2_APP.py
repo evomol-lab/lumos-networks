@@ -13,7 +13,7 @@ import streamlit as st
 
 
 # 1. Configuração da página
-st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="Lumos Networks | Functional", page_icon="🧬", layout="wide")
 
 # 2. CSS para manter o padrão visual
 st.markdown("""
@@ -38,25 +38,25 @@ with st.sidebar:
         st.image(LOGO_PATH, width=250)
     
     st.divider()
-    st.markdown("### 🚀 Navegação")
+    st.markdown("### 🚀 Navigation")
     
     # IMPORTANTE: Caminhos saindo da pasta 'pages'
-    st.page_link("Lumos_Home.py", label="Página Inicial", icon="🏠")
+    st.page_link("Lumos_Home.py", label="Home Page", icon="🏠")
     
-    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Análise</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Analysis</p>', unsafe_allow_html=True)
     st.page_link("pages/1_DDEA.py", label="DDEA", icon="📈")
     
-    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Funcional</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Functional</p>', unsafe_allow_html=True)
     st.page_link("pages/2_APP.py", label="APP", icon="🧪")
     
-    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Redes</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Networks</p>', unsafe_allow_html=True)
     st.page_link("pages/3_PG.py", label="PG", icon="🕸️")
 
-    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentação</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentation</p>', unsafe_allow_html=True)
     st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
 
     st.divider()
-    st.info("Você está no módulo funcional.")
+    st.info("You are in the functional module.")
     
 
 # 1. Localização atual: 
@@ -105,18 +105,18 @@ def fetch_string_network(genes, confidence=400, max_nodes=150):
 st.title("Arithmancy Pathway Profiler 🕸️🍲")
 
 with st.sidebar:
-    st.header("1. Entrada de Dados")
+    st.header("1. Data Entry")
     uploaded_files = st.file_uploader("Upload CSVs (App 1)", type=['csv'], accept_multiple_files=True)
     st.divider()
-    st.header("2. Filtros e Ajustes")
+    st.header("2. Filters and Settings")
     fdr_cut = st.number_input("FDR Cutoff:", value=0.05, format="%.3f")
     fc_cut = st.number_input("Abs Log2FC Cutoff:", value=1.0, format="%.2f")
-    fdr_viz = st.slider("Corte de FDR para Gráficos:", 0.01, 1.0, 1.0)
+    fdr_viz = st.slider("FDR Cut for Charts:", 0.01, 1.0, 1.0)
     
     st.divider()
-    st.header("📐 Dimensões do Grafo")
-    g_width = st.slider("Largura da Rede:", 600, 1800, 1100, 50)
-    g_height = st.slider("Altura da Rede:", 400, 1200, 800, 50)
+    st.header("📐 Graph Dimensions")
+    g_width = st.slider("Net width:", 600, 1800, 1100, 50)
+    g_height = st.slider("Net height:", 400, 1200, 800, 50)
 
 if uploaded_files:
     all_dfs = [pd.read_csv(f) for f in uploaded_files]
@@ -129,10 +129,10 @@ if uploaded_files:
     genes_down = set(df_sig[df_sig['Log2FC'] < 0]['Symbol'].str.upper())
 
     m1, m2 = st.columns(2)
-    m1.metric("Soma Total de Genes", len(raw_symbols))
-    m2.metric("Genes Únicos", len(unique_symbols))
+    m1.metric("Total Number of Genes", len(raw_symbols))
+    m2.metric("Unique Genes", len(unique_symbols))
 
-    tab1, tab2, tab3 = st.tabs(["📊 Vias (KEGG/GO)", "🕸️ STRING Interativo & Sinergia", "👑 Master Regulators"])
+    tab1, tab2, tab3 = st.tabs(["📊 Pathway (KEGG/GO)", "🕸️ STRING Interactive & Synergy", "👑 Master Regulators"])
 
     k_res = run_enrichr(unique_symbols, 'KEGG_2021_Human')
     g_res = run_enrichr(unique_symbols, 'GO_Biological_Process_2023')
@@ -150,13 +150,13 @@ if uploaded_files:
                 st.plotly_chart(px.scatter(g_res.head(15), x='-log10(FDR)', y='Term', size='Count', title="GO BP", color='Adjusted P-value', color_continuous_scale='Blues_r'), use_container_width=True)
 
     with tab2:
-        st.subheader("Rede de Interações Físicas (Análise de Tooltips)")
-        st.caption("Passe o mouse sobre as LINHAS para descobrir os processos compartilhados.")
+        st.subheader("Physical Interaction Network (Tooltip Analysis)")
+        st.caption("Hover your mouse over the LINES to discover the shared processes.")
         c_p, c_m = st.columns([1, 4])
-        conf = c_p.selectbox("Confiança do STRING:", [150, 400, 700, 900], index=1)
-        max_n = c_p.number_input("Máximo de Genes na Rede:", value=150)
+        conf = c_p.selectbox("STRING Confidence:", [150, 400, 700, 900], index=1)
+        max_n = c_p.number_input("Maximum Number of Genes in the Network:", value=150)
         
-        if c_p.button("🌐 Gerar Rede Master"):
+        if c_p.button("🌐 Create Master Network"):
             top_genes_list = df_sig.sort_values(by='Log2FC', key=abs, ascending=False).head(max_n)['Symbol'].tolist()
             string_df = fetch_string_network(top_genes_list, conf, max_n)
 
@@ -184,7 +184,7 @@ if uploaded_files:
                         g_m = g_res[g_res['Term'].isin(top_vias_list) & g_res['Genes'].apply(lambda x: g1 in str(x) and g2 in str(x))]
                         shared_paths.extend(g_m['Term'].tolist())
                     
-                    tooltip_text = "Interação: " + (" | ".join(list(set(shared_paths))) if shared_paths else "Física")
+                    tooltip_text = "Interaction: " + (" | ".join(list(set(shared_paths))) if shared_paths else "Physics")
                     
                     for g in [g1, g2]:
                         if g not in nodes_added:
@@ -200,7 +200,7 @@ if uploaded_files:
                 
                 # Tabela de Mapeamento (Conforme aprovado anteriormente)
                 st.divider()
-                st.subheader("📋 Mapeamento Funcional: Processos vs Genes da Rede")
+                st.subheader("📋 Functional Mapping: Network Processes vs. Genes")
                 mapping_data = []
                 current_network_genes = list(nodes_added)
                 full_enrichment = pd.concat([k_res.head(12), g_res.head(13)]) if (k_res is not None and g_res is not None) else pd.DataFrame()
@@ -211,14 +211,14 @@ if uploaded_files:
                         genes_in_via = [g for g in str(row['Genes']).split(';') if g in current_network_genes]
                         if genes_in_via:
                             mapping_data.append({
-                                "Processo / Via Biológica (Top 25)": via_name,
-                                "Genes Relacionados na Rede": ", ".join(genes_in_via),
-                                "Contagem": len(genes_in_via),
-                                "Significância (FDR)": f"{row['Adjusted P-value']:.2e}"
+                                "Process / Biological Pathway (Top 25)": via_name,
+                                "Related Genes in the Network": ", ".join(genes_in_via),
+                                "Count": len(genes_in_via),
+                                "Significance (FDR)": f"{row['Adjusted P-value']:.2e}"
                             })
                 st.table(pd.DataFrame(mapping_data))
             else:
-                st.info("Nenhuma interação detectada.")
+                st.info("No interactions detected.")
 
     with tab3:
         st.subheader("Master Regulators (JASPAR/TRRUST)")
@@ -232,8 +232,8 @@ if uploaded_files:
             st.plotly_chart(px.bar(df_final.head(20), x='-log10(FDR)', y='TF_Symbol', orientation='h', color='Adjusted P-value', color_continuous_scale='Viridis_r'), use_container_width=True)
             export_df = df_final[['TF_Symbol', 'Genes', 'Adjusted P-value', 'Overlap']].copy()
             st.dataframe(export_df, use_container_width=True)
-            st.download_button("📥 Baixar CSV para App 3", export_df.to_csv(index=False).encode('utf-8'), "tabela_regulacao_lumos.csv")
+            st.download_button("📥 Download CSV for App 3", export_df.to_csv(index=False).encode('utf-8'), "lumos_regulation_table.csv")
         else:
-            st.error("Falha ao carregar reguladores.")
+            st.error("Error loading regulators.")
 else:
-    st.info("Aguardando CSVs.")
+    st.info("Waiting for CSVs.")
