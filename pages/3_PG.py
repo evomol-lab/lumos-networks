@@ -9,7 +9,7 @@ import os
 import streamlit as st
 
 # 1. Configuração da página 
-st.set_page_config(page_title="Lumos Networks | Análise", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="Lumos Networks | Networks", page_icon="🧬", layout="wide")
 
 # 2. CSS para manter o padrão visual
 st.markdown("""
@@ -35,25 +35,25 @@ with st.sidebar:
         st.image(LOGO_PATH, width=250)
     
     st.divider()
-    st.markdown("### 🚀 Navegação")
+    st.markdown("### 🚀 Navigation")
     
     # IMPORTANTE: Caminhos saindo da pasta 'pages'
-    st.page_link("Lumos_Home.py", label="Página Inicial", icon="🏠")
+    st.page_link("Lumos_Home.py", label="Home Page", icon="🏠")
     
-    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Análise</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#2E86C1; font-weight:bold; margin-bottom:0px; margin-top:10px;">📊 Analysis</p>', unsafe_allow_html=True)
     st.page_link("pages/1_DDEA.py", label="DDEA", icon="📈")
     
-    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Funcional</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#28B463; font-weight:bold; margin-bottom:0px; margin-top:10px;">🧬 Functional</p>', unsafe_allow_html=True)
     st.page_link("pages/2_APP.py", label="APP", icon="🧪")
     
-    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Redes</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#E67E22; font-weight:bold; margin-bottom:0px; margin-top:10px;">🕸️ Networks</p>', unsafe_allow_html=True)
     st.page_link("pages/3_PG.py", label="PG", icon="🕸️")
 
-    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentação</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#E1AF12; font-weight:bold; margin-bottom:0px; margin-top:10px;">📚 Documentation</p>', unsafe_allow_html=True)
     st.page_link("pages/Documentation.py", label="Documentation", icon="📚")
 
     st.divider()
-    st.info("Você está no módulo de redes.")
+    st.info("You are in the networking module.")
 
 
 # 1. Localização atual: /code/src/pages/seu_script.py
@@ -74,7 +74,7 @@ with st.sidebar:
 # ============================================================
 
 st.title("PrioriGraph 👑")
-st.markdown("### Integração de Redes Regulatórias (TF -> Genes)")
+st.markdown("### Integration of Regulatory Networks (TF -> Genes)")
 
 # Recuperação de Dados do APP (Sincronização entre módulos)
 k_res = st.session_state.get('k_res')
@@ -82,22 +82,22 @@ g_res = st.session_state.get('g_res')
 
 # --- SIDEBAR: CONTROLES ---
 with st.sidebar:
-    st.header("🔍 Busca e Filtros")
+    st.header("🔍 Search and Filters")
     # A busca agora foca no destaque VERDE
-    search_query = st.text_input("Localizar Gene ou Fator (Destaque Verde):", "").strip().upper()
+    search_query = st.text_input("Locate Gene or Factor (Highlighted in Green):", "").strip().upper()
     
     st.divider()
-    uploaded_files = st.file_uploader("Upload Tabelas JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
-    num_vias = st.slider("Quantidade de Clusters (Vias):", 2, 15, 6)
+    uploaded_files = st.file_uploader("Upload Tables JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
+    num_vias = st.slider("Number of Clusters (Paths):", 2, 15, 6)
 
 # --- LEGENDA VISUAL FIXA ---
 st.markdown("""
     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px;">
-        <h4 style="margin-top: 0;">📍 Legenda da Rede</h4>
-        <span style="color: #1C83E1; font-weight: bold;">● Círculo Azul:</span> Gene Alvo | 
-        <span style="color: #FF4B4B; font-weight: bold;">■ Quadrado Vermelho:</span> Fator de Transcrição | 
-        <span style="color: #FFD700; font-weight: bold;">⬢ Hexágono Amarelo:</span> Vias/Processos | 
-        <span style="color: #28B463; font-weight: bold;">★ Destaque Verde:</span> Item Pesquisado
+        <h4 style="margin-top: 0;">📍 Network Legend</h4>
+        <span style="color: #1C83E1; font-weight: bold;">● Blue Circle:</span> Target Gene | 
+        <span style="color: #FF4B4B; font-weight: bold;">■ Red Square:</span> Transcription Factor | 
+        <span style="color: #FFD700; font-weight: bold;">⬢ Yellow Hexagon:</span> Pathways/Processes | 
+        <span style="color: #28B463; font-weight: bold;">★ Green Highlight:</span> Searched Item
     </div>
     """, unsafe_allow_html=True)
 
@@ -171,27 +171,27 @@ if uploaded_files and (k_res is not None or g_res is not None):
     # Configuração da Área do Grafo (Física Desligada)
     config = Config(width=1100, height=800, directed=True, physics=False, hierarchical=False)
     
-    st.subheader(f"🕸️ Rede de Clusters Integrada ({num_vias} Processos)")
+    st.subheader(f"🕸️ Integrated Cluster Network ({num_vias} Processes)")
     agraph(nodes=nodes, edges=edges, config=config)
 
     # --- 3. QUADROS DE ANÁLISE E RANKINGS ---
     st.divider()
-    t1, t2, t3 = st.tabs(["👑 Master Regulators", "🎯 Genetic Hubs", "🧬 Mapeamento TF-Via"])
+    t1, t2, t3 = st.tabs(["👑 Master Regulators", "🎯 Genetic Hubs", "🧬 TF-Via Mapping"])
 
     with t1:
-        st.subheader("Fatores de Transcrição por Grau de Saída (Out-Degree)")
+        st.subheader("Transcription Factors by Out-Degree")
         m_rank = df_reg['TF'].value_counts().reset_index()
-        m_rank.columns = ['Fator de Transcrição', 'Total de Alvos na Rede']
+        m_rank.columns = ['Transcription Factor', 'Total Targets in the Network']
         st.dataframe(m_rank, use_container_width=True, hide_index=True)
 
     with t2:
-        st.subheader("Genes Alvos por Grau de Entrada (In-Degree)")
+        st.subheader("Target Genes by In-Degree")
         h_rank = df_reg['Target'].value_counts().reset_index()
-        h_rank.columns = ['Gene Alvo', 'Total de Reguladores']
+        h_rank.columns = ['Target Gene', 'Total Number of Regulators']
         st.dataframe(h_rank, use_container_width=True, hide_index=True)
 
     with t3:
-        st.subheader("Análise Hierárquica: Reguladores Principais por Via")
+        st.subheader("Hierarchical Analysis: Key Regulators by Pathway.")
         mapping_rows = []
         for _, row in top_vias.iterrows():
             via = row['Term']
@@ -207,14 +207,14 @@ if uploaded_files and (k_res is not None or g_res is not None):
                 total_genes_via_rede = len(reg_in_via['Target'].unique())
                 
                 mapping_rows.append({
-                    "Via Biológica / Processo": via,
-                    "Regulador Principal": main_tf,
-                    "Genes Alvos do TF nesta Via": n_targets_in_via,
-                    "Total de Genes da Via na Rede": total_genes_via_rede,
-                    "Significância (FDR)": f"{row['Adjusted P-value']:.2e}"
+                    "Biological Pathway / Process": via,
+                    "Master Regulator": main_tf,
+                    "TF Target Genes in This Pathway": n_targets_in_via,
+                    "Total number of genes in the pathway compared to the entire network.": total_genes_via_rede,
+                    "Significance (FDR)": f"{row['Adjusted P-value']:.2e}"
                 })
         
         st.table(pd.DataFrame(mapping_rows))
 
 else:
-    st.info("💡 Por favor, carregue os arquivos CSV regulatórios. Certifique-se de ter processado os dados no módulo APP para carregar os clusters.")
+    st.info("💡 Please upload the regulatory CSV files. Make sure you have processed the data in the APP module before uploading the clusters.")
