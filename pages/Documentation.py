@@ -150,5 +150,20 @@ with tab3:
         
     st.warning("⚠️ **Research Note:** PrioriGraph prioritizes interactions supported by experimental evidence (Curated Databases), thereby reducing the noise associated with purely computational predictions.")
 
+    st.subheader("🧬 Hierarchical Analysis and Functional Enrichment")
+    st.markdown("""
+    What sets PrioriGraph apart is its ability to break down the complexity of the network into units of biological significance.
+    
+    **1. Process-Based Networks (Pathway-Centric Networks):**
+    The system maps how differentially expressed genes are organized into **Biological Processes (GO:BP) and KEGG**, allowing users to visualize the connections between different pathways rather than individual genes.
+    **2. Identification of Master Controllers by Channel:**
+    For each identified biological pathway, Lumos calculates the influence of transcription factors (TFs), generating a decision matrix that includes:
+    - **Master Regulator:** The TF with the highest target density on the specific path.
+    - **Target Coverage:** The number of genes in the pathway that are directly controlled by the regulator within the network.
+    - **Statistical Rigor:** Integration of the pathway enrichment p-value with regulatory evidence for the TF-Target pair.
+    """)
+    
+    # Exemplo visual da lógica da tabela
+    st.info("💡 **Clinical Insight:** This feature allows you to identify which master regulator should be targeted to modulate a specific biological process.")
 st.markdown("---")
 st.caption("Lumos Networks Documentation - EvoMol-Lab 2026")
