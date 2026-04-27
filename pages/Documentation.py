@@ -78,7 +78,7 @@ with tab1:
         
         * **Corrects compositional biases:** Ensures that genes highly expressed in one condition do not cause false negatives in the others.
         * **Stability:** It uses a virtual reference sample based on the geometric mean, making the subsequent Wald test much more reliable.
-        “”")
+        """)
 
     with col2:
         st.subheader("🛠️ Workflow")
