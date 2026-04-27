@@ -111,7 +111,7 @@ with tab2:
         
         **2. Gene Ontology (GO):**
         Hierarchical classification of genes and their products. Lumos Networks prioritizes Biological Process (BP) analysis, enabling the identification of specific metabolic pathways and signaling cascades activated in the biological system under study.
-      
+        
         **3. STRING (PPI Networks):**
         Mapping of protein-protein interactions. This allows you to see whether the products of differentially expressed genes interact physically or functionally.
         
