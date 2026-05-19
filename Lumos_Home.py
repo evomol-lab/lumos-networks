@@ -67,8 +67,6 @@ with st.sidebar:
 
     st.divider()
     
-    # O restante do seu código (Guia de Conceitos, Metric, etc) 
-    # deve seguir este mesmo alinhamento (indentação)
     st.info("Select a module above to begin your analysis.")  
     
     st.markdown("### 🧠 Quick Guide to Concepts")
@@ -91,7 +89,7 @@ with st.sidebar:
 
 st.divider()
 
-# --- CONTEÚDO PRINCIPAL (MANTIDO IGUAL) ---
+# --- CONTEÚDO PRINCIPAL ---
 st.markdown("""
     <style>
     .section-header { color: #2E86C1; border-bottom: 2px solid #2E86C1; padding-bottom: 5px; font-weight: bold; }
