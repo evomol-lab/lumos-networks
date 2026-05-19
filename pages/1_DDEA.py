@@ -306,10 +306,6 @@ def get_gene_mapping_rnaseq(index_ids: tuple, id_type: str):
     return mapping_df, f"{(mapping_df['Symbol'] != mapping_df['Probe_ID']).sum()}/{len(mapping_df)} mapeados."
 
 # ============================================================
-# PARSE E EXTRAÇÃO GEO
-# ============================================================
-
-# ============================================================
 # PARSE E EXTRAÇÃO GEO CORRIGIDO 
 # ============================================================
 
@@ -352,10 +348,21 @@ def _parse_matrix_bytes(raw_bytes, filename=""):
 
 def get_geo_full_data(gse_id, mode, log_cb=None):
     if log_cb: log_cb("Buscando metadados...")
-    df_matrix, meta_df, gsms, gsm_order, detected_type = _try_series_matrix(gse_id)
-    if meta_df is None: return None, None, None, [], None, "Falha GEO.", 'unknown'
     
-    # Se encontrou dados válidos no Series Matrix, retorna direto
+    # Executa de forma segura capturando a tupla de retorno
+    try:
+        res_matrix = _try_series_matrix(gse_id)
+        if res_matrix and len(res_matrix) == 5:
+            df_matrix, meta_df, gsms, gsm_order, detected_type = res_matrix
+        else:
+            return None, None, None, [], None, "Formato inválido do Series Matrix.", 'unknown'
+    except Exception as e:
+        return None, None, None, [], None, f"Erro ao ler Series Matrix: {str(e)}", 'unknown'
+        
+    if meta_df is None: 
+        return None, None, None, [], None, "Falha GEO: Metadados não encontrados.", 'unknown'
+    
+    # Se encontrou dados válidos no Series Matrix e não for RNASeq bruto, retorna direto
     if df_matrix is not None and df_matrix.shape[1] >= 2 and (mode != "RNASeq" or df_matrix.max().max() > 50):
         return df_matrix, meta_df, gsms, gsm_order, "Series Matrix", None, detected_type
 
@@ -385,7 +392,6 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                                 f_extracted = tar.extractfile(member)
                                 if f_extracted:
                                     filename = member.name.split('/')[-1]
-                                    # Extrai o GSM ID do nome do arquivo (ex: GSM3177181_13-T106-TTR-CII.txt.gz -> GSM3177181)
                                     sample_id = filename.split('_')[0]
                                     
                                     series_sample = _parse_matrix_bytes(f_extracted.read(), filename)
@@ -409,10 +415,10 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                     df_synced, msg = _sync_suppl_columns_with_gsms(df_suppl, gsm_order)
                     return df_synced, meta_df, gsms, gsm_order, f"Suppl ({msg})", None, detected_type
     except Exception as e:
-        st.error(f"Erro no processamento automático do TAR: {str(e)}")
+        return None, meta_df, gsms, gsm_order, None, f"Erro no processamento do TAR: {str(e)}", detected_type
         
-    return None, meta_df, gsms, gsm_order, None, None, detected_type
-
+    return None, meta_df, gsms, gsm_order, None, "Nenhuma matriz de contagem válida encontrada.", detected_type
+    
 # ============================================================
 # APP PRINCIPAL
 # ============================================================
