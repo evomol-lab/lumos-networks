@@ -306,7 +306,7 @@ def get_gene_mapping_rnaseq(index_ids: tuple, id_type: str):
     return mapping_df, f"{(mapping_df['Symbol'] != mapping_df['Probe_ID']).sum()}/{len(mapping_df)} mapeados."
 
 # ============================================================
-# PARSE E EXTRAÇÃO GEO CORRIGIDO 
+# PARSE E EXTRAÇÃO GEO
 # ============================================================
 
 def _parse_matrix_bytes(raw_bytes, filename=""):
@@ -314,28 +314,18 @@ def _parse_matrix_bytes(raw_bytes, filename=""):
         content = gzip.decompress(raw_bytes) if filename.endswith('.gz') else raw_bytes
         for sep in ['\t', ',']:
             try:
-                # Força a leitura inicial sem definir index para analisar a estrutura
                 df = pd.read_csv(io.BytesIO(content), sep=sep, header=None, low_memory=False)
-                
-                # Se a primeira linha contiver texto, rebaixa para header real
                 if any(df.iloc[0].astype(str).str.contains(r'[A-Za-z]', regex=True)):
                     df.columns = df.iloc[0]
                     df = df[1:].reset_index(drop=True)
                 
-                # Identifica colunas
-                # Padrão: Primeira coluna costuma ser o Gene ID
                 gene_col = df.columns[0]
-                
-                # Procura a coluna de contagens (frequentemente chamada de 'count', 'read' ou a última coluna numérica)
                 count_col = next((c for c in df.columns if 'count' in str(c).lower() or 'read' in str(c).lower()), None)
                 if not count_col:
-                    # Se não achar por nome, pega a última coluna disponível
                     count_col = df.columns[-1]
                 
-                # Cria o DataFrame final limpo para esta amostra
                 df_clean = df[[gene_col, count_col]].copy()
                 df_clean.columns = ['gene_id', 'raw_counts']
-                
                 df_clean['gene_id'] = df_clean['gene_id'].astype(str).str.strip().str.replace('"', '')
                 df_clean['raw_counts'] = pd.to_numeric(df_clean['raw_counts'], errors='coerce')
                 
@@ -345,6 +335,55 @@ def _parse_matrix_bytes(raw_bytes, filename=""):
                 continue
     except Exception as e:
         return None
+
+def _try_series_matrix(gse_id):
+    num = gse_id.replace("GSE", "")
+    prefix = f"GSE{num[:-3]}nnn" if len(num) > 3 else "GSEnnn"
+    url = f"https://ftp.ncbi.nlm.nih.gov/geo/series/{prefix}/{gse_id}/matrix/{gse_id}_series_matrix.txt.gz"
+    try:
+        r = requests.get(url, timeout=60, headers=HEADERS)
+        if r.status_code != 200: return None, None, None, [], 'unknown'
+        with gzip.open(io.BytesIO(r.content), 'rt') as f:
+            titles, gsms, gsm_order, stype = [], [], [], ""
+            meta_dict = {}
+            df = pd.DataFrame()
+            for line in f:
+                line = line.strip()
+                if line.startswith('!Series_type'): 
+                    stype = line.lower()
+                elif line.startswith('!Sample_title'): 
+                    meta_dict['Title'] = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
+                elif line.startswith('!Sample_geo_accession'):
+                    gsms = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
+                    meta_dict['Accession'] = gsms
+                    gsm_order = gsms[:]
+                elif line.startswith('!Sample_source_name_ch1'):
+                    meta_dict['source_name_ch1'] = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
+                elif line.startswith('!Sample_characteristics_ch1'):
+                    vals = [v.strip().replace('"', '') for v in line.split('\t')[1:]]
+                    if vals:
+                        key = vals[0].split(':')[0] if ':' in vals[0] else f"Char_{len(meta_dict)}"
+                        meta_dict[key] = [v.split(': ')[1] if ': ' in v else v for v in vals]
+                elif line.startswith('ID_REF') or line.startswith('"ID_REF"'):
+                    df = pd.read_csv(f, sep='\t', header=None, low_memory=True)
+                    break
+
+            det_type = 'RNASeq' if 'sequencing' in stype else 'Microarray' if 'array' in stype else 'unknown'
+            meta_df = pd.DataFrame(meta_dict)
+
+            if df.empty or len(df.columns) < 2: return None, meta_df, gsms, gsm_order, det_type
+            df = df.set_index(0)
+            df.index = df.index.astype(str).str.strip().str.replace('"', '')
+            df.rename(columns={col: gsm_order[i] for i, col in enumerate(df.columns) if i < len(gsm_order)}, inplace=True)
+            return df.select_dtypes(include=[np.number]), meta_df, gsms, gsm_order, det_type
+    except: return None, None, None, [], 'unknown'
+
+def _sync_suppl_columns_with_gsms(df_suppl, gsm_order):
+    cols, gsm_set = list(df_suppl.columns), set(gsm_order)
+    direct = [c for c in cols if c in gsm_set]
+    if len(direct) >= 2: return df_suppl[direct], "interseção"
+    if len(cols) == len(gsm_order): return df_suppl.rename(columns=dict(zip(cols, gsm_order))), "posicional"
+    return df_suppl, "não sincronizado"
 
 def get_geo_full_data(gse_id, mode, log_cb=None):
     if log_cb: log_cb("Buscando metadados...")
@@ -375,19 +414,16 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
             tar_url = next((u for u in urls if '_RAW.tar' in u or '.tar' in u.lower()), None)
             
             if tar_url:
-                # --- DOWNLOAD SEGURO EM DISCO TEMPORÁRIO VIA STREAMING ---
                 local_tar_path = f"{gse_id}_RAW_temp.tar"
-                
                 progress_bar = st.progress(0, text="🧬 Conectando ao GEO para baixar o arquivo TAR...")
                 
-                # Faz o download em pedaços (chunks) para não estourar a RAM
                 with requests.get(tar_url, stream=True, headers=HEADERS, timeout=300) as stream_resp:
                     stream_resp.raise_for_status()
                     total_size = int(stream_resp.headers.get('content-length', 0))
                     bytes_downloaded = 0
                     
                     with open(local_tar_path, 'wb') as f_out:
-                        for chunk in stream_resp.iter_content(chunk_size=1024 * 1024): # 1MB por vez
+                        for chunk in stream_resp.iter_content(chunk_size=1024 * 1024):
                             if chunk:
                                 f_out.write(chunk)
                                 bytes_downloaded += len(chunk)
@@ -396,13 +432,10 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                                     progress_bar.progress(percent, text=f"📥 Baixando arquivo RAW.tar ({bytes_downloaded // (1024*1024)}MB baixados)...")
 
                 progress_bar.progress(1.0, text="📦 Descompactando e consolidando a matriz de contagens...")
-                
                 combined_df = pd.DataFrame()
                 
-                # Abre o arquivo direto do disco rígido
                 with tarfile.open(local_tar_path, 'r') as tar:
                     members = [m for m in tar.getmembers() if m.isfile() and (m.name.endswith('.gz') or m.name.endswith('.txt'))]
-                    
                     for i, member in enumerate(members):
                         f_extracted = tar.extractfile(member)
                         if f_extracted:
@@ -417,15 +450,11 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                                 else:
                                     combined_df = combined_df.join(series_sample, how='outer')
                         
-                        # Atualiza progresso da leitura dos arquivos de contagem
                         if i % 5 == 0 or i == len(members) - 1:
                             progress_bar.progress(1.0, text=f"🧬 Processando amostras: {i+1} de {len(members)} concluídas...")
 
-                # Limpa o arquivo TAR temporário do disco para liberar espaço no servidor
                 if os.path.exists(local_tar_path):
                     os.remove(local_tar_path)
-                
-                # Remove a barra de progresso ao finalizar
                 progress_bar.empty()
 
                 if not combined_df.empty:
@@ -433,7 +462,6 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                     df_synced, msg = _sync_suppl_columns_with_gsms(combined_df, gsm_order)
                     return df_synced, meta_df, gsms, gsm_order, f"Automated TAR ({msg})", None, detected_type
 
-            # Fallback antigo para arquivos suplementares individuais
             for u in sorted(urls, key=lambda x: 3 if 'count' in x.lower() or 'raw' in x.lower() else 0, reverse=True):
                 if '.tar' in u.lower(): continue
                 df_suppl = _parse_matrix_bytes(requests.get(u, timeout=60, headers=HEADERS).content, u)
@@ -442,7 +470,6 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                     return df_synced, meta_df, gsms, gsm_order, f"Suppl ({msg})", None, detected_type
                     
     except Exception as e:
-        # Garante a limpeza do arquivo mesmo se o código falhar no meio
         if 'local_tar_path' in locals() and os.path.exists(local_tar_path):
             os.remove(local_tar_path)
         return None, meta_df, gsms, gsm_order, None, f"Erro no processamento do TAR: {str(e)}", detected_type
