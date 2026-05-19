@@ -382,21 +382,69 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
     if log_cb: log_cb("Buscando metadados...")
     df_matrix, meta_df, gsms, gsm_order, detected_type = _try_series_matrix(gse_id)
     if meta_df is None: return None, None, None, [], None, "Falha GEO.", 'unknown'
+    
+    # Se achou no Series Matrix, retorna direto
     if df_matrix is not None and df_matrix.shape[1] >= 2 and (mode != "RNASeq" or df_matrix.max().max() > 50):
         return df_matrix, meta_df, gsms, gsm_order, "Series Matrix", None, detected_type
 
+    # --- CORREÇÃO: ENGENHARIA DE DOWNLOAD E PARSE AUTOMÁTICO DO GSE115390_RAW.tar ---
     num = gse_id.replace("GSE", "")
-    base_url = f"https://ftp.ncbi.nlm.nih.gov/geo/series/{f'GSE{num[:-3]}nnn' if len(num) > 3 else 'GSEnnn'}/{gse_id}/suppl/"
+    prefix = f"GSE{num[:-3]}nnn" if len(num) > 3 else "GSEnnn"
+    
+    # 1. Tenta buscar arquivos suplementares (como matrizes consolidadas escritas pelo autor)
+    base_url = f"https://ftp.ncbi.nlm.nih.gov/geo/series/{prefix}/{gse_id}/suppl/"
     try:
         r = requests.get(base_url, timeout=20, headers=HEADERS)
         if r.status_code == 200:
             urls = [base_url + f[0] for f in re.findall(r'href="([^"]+\.(txt|tsv|csv|tar)(\.gz)?)"', r.text, re.IGNORECASE)]
+            
+            # Se houver um arquivo .tar (comum em RNA-Seq bruto do GEO como o GSE115390)
+            tar_url = next((u for u in urls if '_RAW.tar' in u or '.tar' in u.lower()), None)
+            
+            if tar_url:
+                if log_cb: log_cb("Baixando arquivo RAW.tar e consolidando matriz...")
+                tar_resp = requests.get(tar_url, timeout=120, headers=HEADERS)
+                
+                if tar_resp.status_code == 200:
+                    # Abre o arquivo TAR direto da memória
+                    tar_bytes = io.BytesIO(tar_resp.content)
+                    combined_df = pd.DataFrame()
+                    
+                    with tarfile.open(fileobj=tar_bytes) as tar:
+                        for member in tar.getmembers():
+                            if member.isfile() and (member.name.endswith('.gz') or member.name.endswith('.txt')):
+                                f_extracted = tar.extractfile(member)
+                                if f_extracted:
+                                    # Lê o arquivo individual de contagens
+                                    filename = member.name.split('/')[-1]
+                                    sample_id = filename.split('_')[0] # Pega o GSM
+                                    
+                                    # Faz o parse individual baseado na função interna que você já tem
+                                    dft = _parse_matrix_bytes(f_extracted.read(), filename)
+                                    if dft is not None:
+                                        # Força o nome da coluna a ser o ID da amostra
+                                        dft.columns = [sample_id]
+                                        if combined_df.empty:
+                                            combined_df = dft
+                                        else:
+                                            combined_df = combined_df.join(dft, how='outer')
+                    
+                    if not combined_df.empty:
+                        combined_df = combined_df.fillna(0)
+                        df_synced, msg = _sync_suppl_columns_with_gsms(combined_df, gsm_order)
+                        return df_synced, meta_df, gsms, gsm_order, f"Automated TAR ({msg})", None, detected_type
+
+            # 2. Fallback caso não seja um TAR (comportamento antigo do seu código)
             for u in sorted(urls, key=lambda x: 3 if 'count' in x.lower() or 'raw' in x.lower() else 0, reverse=True):
+                if '.tar' in u.lower(): continue
                 df_suppl = _parse_matrix_bytes(requests.get(u, timeout=60, headers=HEADERS).content, u)
                 if df_suppl is not None and df_suppl.shape[1] >= 2:
                     df_synced, msg = _sync_suppl_columns_with_gsms(df_suppl, gsm_order)
                     return df_synced, meta_df, gsms, gsm_order, f"Suppl ({msg})", None, detected_type
-    except: pass
+    except Exception as e:
+        if log_cb: log_cb(f"Erro na automação: {str(e)}")
+        pass
+        
     return None, meta_df, gsms, gsm_order, None, None, detected_type
 
 # ============================================================
