@@ -10,6 +10,7 @@ import io
 import re
 import gc
 import os
+import tarfile
 from datetime import datetime
 from fpdf import FPDF
 from Bio import Entrez
@@ -308,105 +309,73 @@ def get_gene_mapping_rnaseq(index_ids: tuple, id_type: str):
 # PARSE E EXTRAÇÃO GEO
 # ============================================================
 
+# ============================================================
+# PARSE E EXTRAÇÃO GEO CORRIGIDO 
+# ============================================================
+
 def _parse_matrix_bytes(raw_bytes, filename=""):
     try:
         content = gzip.decompress(raw_bytes) if filename.endswith('.gz') else raw_bytes
         for sep in ['\t', ',']:
             try:
-                df = pd.read_csv(io.BytesIO(content), sep=sep, index_col=0, low_memory=False)
-                df.index = df.index.astype(str).str.strip().str.replace('"', '')
+                # Força a leitura inicial sem definir index para analisar a estrutura
+                df = pd.read_csv(io.BytesIO(content), sep=sep, header=None, low_memory=False)
                 
-                # Filtro Acadêmico: Remove colunas técnicas do featureCounts
-                cols_to_drop = ['Length', 'Chr', 'Start', 'End', 'Strand', 'Geneid', 'gene_name']
-                df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+                # Se a primeira linha contiver texto, rebaixa para header real
+                if any(df.iloc[0].astype(str).str.contains(r'[A-Za-z]', regex=True)):
+                    df.columns = df.iloc[0]
+                    df = df[1:].reset_index(drop=True)
                 
-                if 'ReadCount' in df.columns and len(df.columns) == 1:
-                    df = df.rename(columns={'ReadCount': filename.split('.')[0].split('_')[0]})
-
-                if df.select_dtypes(include=[np.number]).shape[1] >= 1:
-                    return df.select_dtypes(include=[np.number])
-            except: continue
-    except: return None
-
-def _try_series_matrix(gse_id):
-    num = gse_id.replace("GSE", "")
-    prefix = f"GSE{num[:-3]}nnn" if len(num) > 3 else "GSEnnn"
-    url = f"https://ftp.ncbi.nlm.nih.gov/geo/series/{prefix}/{gse_id}/matrix/{gse_id}_series_matrix.txt.gz"
-    try:
-        r = requests.get(url, timeout=60, headers=HEADERS)
-        if r.status_code != 200: return None, None, None, [], 'unknown'
-        with gzip.open(io.BytesIO(r.content), 'rt') as f:
-            titles, gsms, gsm_order, stype = [], [], [], ""
-            meta_dict = {}
-            df = pd.DataFrame()
-            for line in f:
-                line = line.strip()
-                if line.startswith('!Series_type'): 
-                    stype = line.lower()
-                elif line.startswith('!Sample_title'): 
-                    meta_dict['Title'] = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
-                elif line.startswith('!Sample_geo_accession'):
-                    gsms = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
-                    meta_dict['Accession'] = gsms
-                    gsm_order = gsms[:]
-                elif line.startswith('!Sample_source_name_ch1'):
-                    meta_dict['source_name_ch1'] = [t.strip().replace('"', '') for t in line.split('\t')[1:]]
-                elif line.startswith('!Sample_characteristics_ch1'):
-                    # Captura características extras (lesion/non-lesion costumam estar aqui também)
-                    vals = [v.strip().replace('"', '') for v in line.split('\t')[1:]]
-                    if vals:
-                        key = vals[0].split(':')[0] if ':' in vals[0] else f"Char_{len(meta_dict)}"
-                        meta_dict[key] = [v.split(': ')[1] if ': ' in v else v for v in vals]
-                elif line.startswith('ID_REF') or line.startswith('"ID_REF"'):
-                    df = pd.read_csv(f, sep='\t', header=None, low_memory=True)
-                    break
-
-            det_type = 'RNASeq' if 'sequencing' in stype else 'Microarray' if 'array' in stype else 'unknown'
-            meta_df = pd.DataFrame(meta_dict)
-
-            if df.empty or len(df.columns) < 2: return None, meta_df, gsms, gsm_order, det_type
-            df = df.set_index(0)
-            df.index = df.index.astype(str).str.strip().str.replace('"', '')
-            df.rename(columns={col: gsm_order[i] for i, col in enumerate(df.columns) if i < len(gsm_order)}, inplace=True)
-            return df.select_dtypes(include=[np.number]), meta_df, gsms, gsm_order, det_type
-    except: return None, None, None, [], 'unknown'
-
-def _sync_suppl_columns_with_gsms(df_suppl, gsm_order):
-    cols, gsm_set = list(df_suppl.columns), set(gsm_order)
-    direct = [c for c in cols if c in gsm_set]
-    if len(direct) >= 2: return df_suppl[direct], "interseção"
-    if len(cols) == len(gsm_order): return df_suppl.rename(columns=dict(zip(cols, gsm_order))), "posicional"
-    return df_suppl, "não sincronizado"
+                # Identifica colunas
+                # Padrão: Primeira coluna costuma ser o Gene ID
+                gene_col = df.columns[0]
+                
+                # Procura a coluna de contagens (frequentemente chamada de 'count', 'read' ou a última coluna numérica)
+                count_col = next((c for c in df.columns if 'count' in str(c).lower() or 'read' in str(c).lower()), None)
+                if not count_col:
+                    # Se não achar por nome, pega a última coluna disponível
+                    count_col = df.columns[-1]
+                
+                # Cria o DataFrame final limpo para esta amostra
+                df_clean = df[[gene_col, count_col]].copy()
+                df_clean.columns = ['gene_id', 'raw_counts']
+                
+                df_clean['gene_id'] = df_clean['gene_id'].astype(str).str.strip().str.replace('"', '')
+                df_clean['raw_counts'] = pd.to_numeric(df_clean['raw_counts'], errors='coerce')
+                
+                df_clean = df_clean.dropna().set_index('gene_id')
+                return df_clean['raw_counts']
+            except Exception as e:
+                continue
+    except Exception as e:
+        return None
 
 def get_geo_full_data(gse_id, mode, log_cb=None):
     if log_cb: log_cb("Buscando metadados...")
     df_matrix, meta_df, gsms, gsm_order, detected_type = _try_series_matrix(gse_id)
     if meta_df is None: return None, None, None, [], None, "Falha GEO.", 'unknown'
     
-    # Se achou no Series Matrix, retorna direto
+    # Se encontrou dados válidos no Series Matrix, retorna direto
     if df_matrix is not None and df_matrix.shape[1] >= 2 and (mode != "RNASeq" or df_matrix.max().max() > 50):
         return df_matrix, meta_df, gsms, gsm_order, "Series Matrix", None, detected_type
 
-    # --- CORREÇÃO: ENGENHARIA DE DOWNLOAD E PARSE AUTOMÁTICO DO GSE115390_RAW.tar ---
     num = gse_id.replace("GSE", "")
     prefix = f"GSE{num[:-3]}nnn" if len(num) > 3 else "GSEnnn"
-    
-    # 1. Tenta buscar arquivos suplementares (como matrizes consolidadas escritas pelo autor)
     base_url = f"https://ftp.ncbi.nlm.nih.gov/geo/series/{prefix}/{gse_id}/suppl/"
+    
     try:
         r = requests.get(base_url, timeout=20, headers=HEADERS)
         if r.status_code == 200:
             urls = [base_url + f[0] for f in re.findall(r'href="([^"]+\.(txt|tsv|csv|tar)(\.gz)?)"', r.text, re.IGNORECASE)]
             
-            # Se houver um arquivo .tar (comum em RNA-Seq bruto do GEO como o GSE115390)
+            # Localiza o pacote TAR bruto de RNA-Seq (GSE115390_RAW.tar)
             tar_url = next((u for u in urls if '_RAW.tar' in u or '.tar' in u.lower()), None)
             
             if tar_url:
-                if log_cb: log_cb("Baixando arquivo RAW.tar e consolidando matriz...")
-                tar_resp = requests.get(tar_url, timeout=120, headers=HEADERS)
+                st.toast("📦 Arquivo TAR detectado. Baixando amostras brutas...")
+                tar_resp = requests.get(tar_url, timeout=300, headers=HEADERS)
                 
                 if tar_resp.status_code == 200:
-                    # Abre o arquivo TAR direto da memória
                     tar_bytes = io.BytesIO(tar_resp.content)
                     combined_df = pd.DataFrame()
                     
@@ -415,26 +384,24 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                             if member.isfile() and (member.name.endswith('.gz') or member.name.endswith('.txt')):
                                 f_extracted = tar.extractfile(member)
                                 if f_extracted:
-                                    # Lê o arquivo individual de contagens
                                     filename = member.name.split('/')[-1]
-                                    sample_id = filename.split('_')[0] # Pega o GSM
+                                    # Extrai o GSM ID do nome do arquivo (ex: GSM3177181_13-T106-TTR-CII.txt.gz -> GSM3177181)
+                                    sample_id = filename.split('_')[0]
                                     
-                                    # Faz o parse individual baseado na função interna que você já tem
-                                    dft = _parse_matrix_bytes(f_extracted.read(), filename)
-                                    if dft is not None:
-                                        # Força o nome da coluna a ser o ID da amostra
-                                        dft.columns = [sample_id]
+                                    series_sample = _parse_matrix_bytes(f_extracted.read(), filename)
+                                    if series_sample is not None:
+                                        series_sample.name = sample_id
                                         if combined_df.empty:
-                                            combined_df = dft
+                                            combined_df = pd.DataFrame(series_sample)
                                         else:
-                                            combined_df = combined_df.join(dft, how='outer')
+                                            combined_df = combined_df.join(series_sample, how='outer')
                     
                     if not combined_df.empty:
-                        combined_df = combined_df.fillna(0)
+                        combined_df = combined_df.fillna(0).astype(int)
                         df_synced, msg = _sync_suppl_columns_with_gsms(combined_df, gsm_order)
                         return df_synced, meta_df, gsms, gsm_order, f"Automated TAR ({msg})", None, detected_type
 
-            # 2. Fallback caso não seja um TAR (comportamento antigo do seu código)
+            # Fallback para arquivos suplementares comuns se não houver TAR
             for u in sorted(urls, key=lambda x: 3 if 'count' in x.lower() or 'raw' in x.lower() else 0, reverse=True):
                 if '.tar' in u.lower(): continue
                 df_suppl = _parse_matrix_bytes(requests.get(u, timeout=60, headers=HEADERS).content, u)
@@ -442,8 +409,7 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
                     df_synced, msg = _sync_suppl_columns_with_gsms(df_suppl, gsm_order)
                     return df_synced, meta_df, gsms, gsm_order, f"Suppl ({msg})", None, detected_type
     except Exception as e:
-        if log_cb: log_cb(f"Erro na automação: {str(e)}")
-        pass
+        st.error(f"Erro no processamento automático do TAR: {str(e)}")
         
     return None, meta_df, gsms, gsm_order, None, None, detected_type
 
