@@ -184,8 +184,6 @@ with col2:
     2. **APP:** Find out ‘what’ genes do and ‘who’ controls them.
     3. **PG:** It reveals *how* the system is organized.
     """)
-    # st.warning("⚠️ Certifique-se de que os nomes dos arquivos de imagem no diretório `src` coincidem com os chamados no código.")
-
 
 # Footer final
 st.divider()
