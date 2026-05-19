@@ -349,7 +349,6 @@ def _parse_matrix_bytes(raw_bytes, filename=""):
 def get_geo_full_data(gse_id, mode, log_cb=None):
     if log_cb: log_cb("Buscando metadados...")
     
-    # Executa de forma segura capturando a tupla de retorno
     try:
         res_matrix = _try_series_matrix(gse_id)
         if res_matrix and len(res_matrix) == 5:
@@ -362,7 +361,6 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
     if meta_df is None: 
         return None, None, None, [], None, "Falha GEO: Metadados não encontrados.", 'unknown'
     
-    # Se encontrou dados válidos no Series Matrix e não for RNASeq bruto, retorna direto
     if df_matrix is not None and df_matrix.shape[1] >= 2 and (mode != "RNASeq" or df_matrix.max().max() > 50):
         return df_matrix, meta_df, gsms, gsm_order, "Series Matrix", None, detected_type
 
@@ -374,47 +372,79 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
         r = requests.get(base_url, timeout=20, headers=HEADERS)
         if r.status_code == 200:
             urls = [base_url + f[0] for f in re.findall(r'href="([^"]+\.(txt|tsv|csv|tar)(\.gz)?)"', r.text, re.IGNORECASE)]
-            
-            # Localiza o pacote TAR bruto de RNA-Seq (GSE115390_RAW.tar)
             tar_url = next((u for u in urls if '_RAW.tar' in u or '.tar' in u.lower()), None)
             
             if tar_url:
-                st.toast("📦 Arquivo TAR detectado. Baixando amostras brutas...")
-                tar_resp = requests.get(tar_url, timeout=300, headers=HEADERS)
+                # --- DOWNLOAD SEGURO EM DISCO TEMPORÁRIO VIA STREAMING ---
+                local_tar_path = f"{gse_id}_RAW_temp.tar"
                 
-                if tar_resp.status_code == 200:
-                    tar_bytes = io.BytesIO(tar_resp.content)
-                    combined_df = pd.DataFrame()
+                progress_bar = st.progress(0, text="🧬 Conectando ao GEO para baixar o arquivo TAR...")
+                
+                # Faz o download em pedaços (chunks) para não estourar a RAM
+                with requests.get(tar_url, stream=True, headers=HEADERS, timeout=300) as stream_resp:
+                    stream_resp.raise_for_status()
+                    total_size = int(stream_resp.headers.get('content-length', 0))
+                    bytes_downloaded = 0
                     
-                    with tarfile.open(fileobj=tar_bytes) as tar:
-                        for member in tar.getmembers():
-                            if member.isfile() and (member.name.endswith('.gz') or member.name.endswith('.txt')):
-                                f_extracted = tar.extractfile(member)
-                                if f_extracted:
-                                    filename = member.name.split('/')[-1]
-                                    sample_id = filename.split('_')[0]
-                                    
-                                    series_sample = _parse_matrix_bytes(f_extracted.read(), filename)
-                                    if series_sample is not None:
-                                        series_sample.name = sample_id
-                                        if combined_df.empty:
-                                            combined_df = pd.DataFrame(series_sample)
-                                        else:
-                                            combined_df = combined_df.join(series_sample, how='outer')
-                    
-                    if not combined_df.empty:
-                        combined_df = combined_df.fillna(0).astype(int)
-                        df_synced, msg = _sync_suppl_columns_with_gsms(combined_df, gsm_order)
-                        return df_synced, meta_df, gsms, gsm_order, f"Automated TAR ({msg})", None, detected_type
+                    with open(local_tar_path, 'wb') as f_out:
+                        for chunk in stream_resp.iter_content(chunk_size=1024 * 1024): # 1MB por vez
+                            if chunk:
+                                f_out.write(chunk)
+                                bytes_downloaded += len(chunk)
+                                if total_size > 0:
+                                    percent = min(1.0, bytes_downloaded / total_size)
+                                    progress_bar.progress(percent, text=f"📥 Baixando arquivo RAW.tar ({bytes_downloaded // (1024*1024)}MB baixados)...")
 
-            # Fallback para arquivos suplementares comuns se não houver TAR
+                progress_bar.progress(1.0, text="📦 Descompactando e consolidando a matriz de contagens...")
+                
+                combined_df = pd.DataFrame()
+                
+                # Abre o arquivo direto do disco rígido
+                with tarfile.open(local_tar_path, 'r') as tar:
+                    members = [m for m in tar.getmembers() if m.isfile() and (m.name.endswith('.gz') or m.name.endswith('.txt'))]
+                    
+                    for i, member in enumerate(members):
+                        f_extracted = tar.extractfile(member)
+                        if f_extracted:
+                            filename = member.name.split('/')[-1]
+                            sample_id = filename.split('_')[0]
+                            
+                            series_sample = _parse_matrix_bytes(f_extracted.read(), filename)
+                            if series_sample is not None:
+                                series_sample.name = sample_id
+                                if combined_df.empty:
+                                    combined_df = pd.DataFrame(series_sample)
+                                else:
+                                    combined_df = combined_df.join(series_sample, how='outer')
+                        
+                        # Atualiza progresso da leitura dos arquivos de contagem
+                        if i % 5 == 0 or i == len(members) - 1:
+                            progress_bar.progress(1.0, text=f"🧬 Processando amostras: {i+1} de {len(members)} concluídas...")
+
+                # Limpa o arquivo TAR temporário do disco para liberar espaço no servidor
+                if os.path.exists(local_tar_path):
+                    os.remove(local_tar_path)
+                
+                # Remove a barra de progresso ao finalizar
+                progress_bar.empty()
+
+                if not combined_df.empty:
+                    combined_df = combined_df.fillna(0).astype(int)
+                    df_synced, msg = _sync_suppl_columns_with_gsms(combined_df, gsm_order)
+                    return df_synced, meta_df, gsms, gsm_order, f"Automated TAR ({msg})", None, detected_type
+
+            # Fallback antigo para arquivos suplementares individuais
             for u in sorted(urls, key=lambda x: 3 if 'count' in x.lower() or 'raw' in x.lower() else 0, reverse=True):
                 if '.tar' in u.lower(): continue
                 df_suppl = _parse_matrix_bytes(requests.get(u, timeout=60, headers=HEADERS).content, u)
                 if df_suppl is not None and df_suppl.shape[1] >= 2:
                     df_synced, msg = _sync_suppl_columns_with_gsms(df_suppl, gsm_order)
                     return df_synced, meta_df, gsms, gsm_order, f"Suppl ({msg})", None, detected_type
+                    
     except Exception as e:
+        # Garante a limpeza do arquivo mesmo se o código falhar no meio
+        if 'local_tar_path' in locals() and os.path.exists(local_tar_path):
+            os.remove(local_tar_path)
         return None, meta_df, gsms, gsm_order, None, f"Erro no processamento do TAR: {str(e)}", detected_type
         
     return None, meta_df, gsms, gsm_order, None, "Nenhuma matriz de contagem válida encontrada.", detected_type
