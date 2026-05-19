@@ -529,10 +529,11 @@ def run_app():
         else:
             label_cols = ['Accession', 'Title']; gene_area = ""; p_thr = 0.05; fc_thr = 1.0; use_limma = False; max_plot = 50; apply_log = True
 
-    # ---- FETCH LOGIC ----
+   # ---- FETCH LOGIC ----
     if fetch_btn and gse_input:
         with st.spinner("🚀 Retrieving data..."):
             df, meta_df, gsms, gsm_order, source, err, detected_type = get_geo_full_data(gse_input.strip(), mode)
+            
             if meta_df is not None:
                 keys_to_reset = ['analysis_done', 'res', 'norm_df', 'df_diff', 'groups', 
                                  'fig_v', 'fig_pca', 'fig_up', 'fig_down', 'fig_h']
@@ -559,8 +560,9 @@ def run_app():
                     st.success(f"✅ Matriz via **{source}** — {df.shape[0]} genes × {df.shape[1]} amostras")
                 
                 st.rerun()
-
-    if 'meta_df' not in st.session_state: return
+            else:
+                st.error(f"❌ Falha ao buscar dados para {gse_input.strip()}:")
+                st.warning(err)
 
     # ---- METADATA & GROUPS ----
     meta = st.session_state['meta_df'].copy()
