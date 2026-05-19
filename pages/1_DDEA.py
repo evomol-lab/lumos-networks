@@ -563,7 +563,11 @@ def run_app():
             else:
                 st.error(f"❌ Falha ao buscar dados para {gse_input.strip()}:")
                 st.warning(err)
-
+                
+# Trava de segurança obrigatória
+    if 'meta_df' not in st.session_state:
+        st.stop()  # Aborta a execução do restante da tela até que o Fetch seja concluído com sucesso.
+        
     # ---- METADATA & GROUPS ----
     meta = st.session_state['meta_df'].copy()
     with st.expander("📊 Metadata Explorer"): st.dataframe(meta, width='stretch')
