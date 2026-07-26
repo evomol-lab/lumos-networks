@@ -83,12 +83,42 @@ g_res = st.session_state.get('g_res')
 # --- SIDEBAR: CONTROLES ---
 with st.sidebar:
     st.header("🔍 Search and Filters")
-    # A busca agora foca no destaque VERDE
     search_query = st.text_input("Locate Gene or Factor (Highlighted in Green):", "").strip().upper()
-    
     st.divider()
-    uploaded_files = st.file_uploader("Upload Tables JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
+
+    tf_source = st.radio("Regulatory Data Source:", ["Import from APP", "Upload Manual Tables"])
     num_vias = st.slider("Number of Clusters (Paths):", 2, 15, 6)
+
+df_reg = pd.DataFrame()
+
+if tf_source == "Import from APP":
+    if 'tf_regulators' in st.session_state and not st.session_state['tf_regulators'].empty:
+        df_reg_raw = st.session_state['tf_regulators'].copy()
+        
+        # Processamento adaptado para os dados do APP
+        df_reg_raw = df_reg_raw.assign(Target=df_reg_raw['Genes'].astype(str).str.split(';')).explode('Target')
+        df_reg = df_reg_raw[['TF_Symbol', 'Target']].rename(columns={'TF_Symbol': 'TF'})
+        df_reg['TF'] = df_reg['TF'].str.upper().str.strip()
+        df_reg['Target'] = df_reg['Target'].str.upper().str.strip()
+        df_reg = df_reg.drop_duplicates()
+    else:
+        st.error("Dados regulatórios ausentes. Execute a aba 'Master Regulators' no APP primeiro.")
+else:
+    uploaded_files = st.file_uploader("Upload Tables JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
+    if uploaded_files:
+        all_data = []
+        for f in uploaded_files:
+            temp = pd.read_csv(f)
+            c_tf = next((c for c in ['TF_Symbol', 'TF_Name', 'TF'] if c in temp.columns), None)
+            c_tg = next((c for c in ['Genes', 'Target_Gene', 'Target'] if c in temp.columns), None)
+            if c_tf and c_tg:
+                temp = temp.assign(Target=temp[c_tg].astype(str).str.split(';')).explode('Target')
+                all_data.append(temp[[c_tf, 'Target']].rename(columns={c_tf: 'TF'}))
+        
+        if all_data:
+            df_reg = pd.concat(all_data).drop_duplicates()
+            df_reg['TF'] = df_reg['TF'].str.upper().str.strip()
+            df_reg['Target'] = df_reg['Target'].str.upper().str.strip()
 
 # --- LEGENDA VISUAL FIXA ---
 st.markdown("""
@@ -101,29 +131,15 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-if uploaded_files and (k_res is not None or g_res is not None):
-    # --- 1. PROCESSAMENTO DE DADOS ---
-    all_data = []
-    for f in uploaded_files:
-        temp = pd.read_csv(f)
-        c_tf = next((c for c in ['TF_Symbol', 'TF_Name', 'TF'] if c in temp.columns), None)
-        c_tg = next((c for c in ['Genes', 'Target_Gene', 'Target'] if c in temp.columns), None)
-        if c_tf and c_tg:
-            # Explode genes caso estejam separados por ';'
-            temp = temp.assign(Target=temp[c_tg].astype(str).str.split(';')).explode('Target')
-            all_data.append(temp[[c_tf, 'Target']].rename(columns={c_tf: 'TF'}))
-    
-    df_reg = pd.concat(all_data).drop_duplicates()
-    df_reg['TF'] = df_reg['TF'].str.upper().str.strip()
-    df_reg['Target'] = df_reg['Target'].str.upper().str.strip()
-
+# A condição correta verifica se df_reg possui dados, não o upload.
+if not df_reg.empty and (k_res is not None or g_res is not None):
     # Seleção das Top Vias/Processos para os Clusters
     top_vias = pd.concat([k_res.head(num_vias), g_res.head(num_vias)]).sort_values('Adjusted P-value')
-
-# --- CONSTRUÇÃO DA REDE ---
+    
+    # --- CONSTRUÇÃO DA REDE ---
     nodes, edges, added = [], [], set()
-
     for _, row in top_vias.iterrows():
+        
         via_name = row['Term'].strip().upper() # Padroniza para busca
         via_genes = set([g.strip().upper() for g in str(row['Genes']).split(';')])
         target_genes_in_via = via_genes.intersection(set(df_reg['Target']))
