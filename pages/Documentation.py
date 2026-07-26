@@ -123,6 +123,21 @@ with tab3:
     st.header("PrioriGraph (PG)")
     st.markdown("PG models the system topology by integrating omics data with curated biological knowledge.")
     
+    st.subheader("🛡️ Methodological Defense: Knowledge-Driven vs. Data-Driven")
+    st.markdown(r"""
+    When comparing PrioriGraph to standard co-expression algorithms like WGCNA, the fundamental distinction lies in how the adjacency matrix is constructed.
+    
+    **1. The Data-Driven Limitation (e.g., WGCNA)**
+    Unsupervised algorithms build networks based purely on statistical correlation across samples:
+    $$a_{ij} = \vert cor(x_i, x_j) \vert^\beta$$
+    While powerful for unsupervised discovery, correlation does not imply biological interaction. These methods are susceptible to technical noise (batch effects) and generate dense "black-box" modules with high false-positive rates for actual physical or regulatory interactions.
+    
+    **2. The Knowledge-Driven Approach (PrioriGraph)**
+    PrioriGraph operates on pre-curated biological evidence. The network topology is not inferred from current variance, but by projecting Differentially Expressed Genes (DEGs) onto validated literature interactions (STRING, JASPAR, TRRUST, KEGG).
+    $$V_{network} = V_{DEG} \cap V_{Curated}$$
+    This acts as a rigorous filter: edges only exist if there is prior physical or regulatory evidence. We sacrifice the discovery of novel structural interactions to deliver high-certainty, actionable biological pathways. From a pedagogical and clinical perspective, this accelerates interpretation by linking statistical variance directly to established biochemistry.
+    """)
+
     st.subheader("🕸️ Network Architecture and Hierarchy")
     
     c_h1, c_h2 = st.columns(2)
@@ -156,6 +171,7 @@ with tab3:
     
     **1. Process-Based Networks (Pathway-Centric Networks):**
     The system maps how differentially expressed genes are organized into **Biological Processes (GO:BP) and KEGG**, allowing users to visualize the connections between different pathways rather than individual genes.
+    
     **2. Identification of Master Controllers by Channel:**
     For each identified biological pathway, Lumos calculates the influence of transcription factors (TFs), generating a decision matrix that includes:
     - **Master Regulator:** The TF with the highest target density on the specific path.
@@ -163,7 +179,6 @@ with tab3:
     - **Statistical Rigor:** Integration of the pathway enrichment p-value with regulatory evidence for the TF-Target pair.
     """)
     
-    # Exemplo visual da lógica da tabela
     st.info("💡 **Clinical Insight:** This feature allows you to identify which master regulator should be targeted to modulate a specific biological process.")
 st.markdown("---")
 st.caption("Lumos Networks Documentation - EvoMol-Lab 2026")
