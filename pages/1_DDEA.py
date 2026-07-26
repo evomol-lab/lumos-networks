@@ -76,9 +76,6 @@ with st.sidebar:
 
     st.divider()
     st.info("You are in the analysis module.")
-    
-import os
-import streamlit as st
 
 # 1. Localização atual: /code/src/pages/seu_script.py
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -87,7 +84,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(FILE_DIR)
 
 # 3. Apontar para o arquivo que está solto na 'src'
-logo_path = os.path.join(PARENT_DIR, "assets", "DDEA.png")
+logo_path = os.path.join(PARENT_DIR,"assets", "DDEA.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
@@ -246,7 +243,7 @@ def detect_index_type(index_values):
 
 def _strip_ensembl_version(ensembl_id: str) -> str:
     return ensembl_id.split('.')[0] if '.' in ensembl_id else ensembl_id
-
+    
 # ============================================================
 # MAPEAMENTO 
 # ============================================================
@@ -475,7 +472,7 @@ def get_geo_full_data(gse_id, mode, log_cb=None):
         return None, meta_df, gsms, gsm_order, None, f"Erro no processamento do TAR: {str(e)}", detected_type
         
     return None, meta_df, gsms, gsm_order, None, "Nenhuma matriz de contagem válida encontrada.", detected_type
-    
+
 # ============================================================
 # APP PRINCIPAL
 # ============================================================
@@ -563,7 +560,8 @@ def run_app():
             
             if meta_df is not None:
                 keys_to_reset = ['analysis_done', 'res', 'norm_df', 'df_diff', 'groups', 
-                                 'fig_v', 'fig_pca', 'fig_up', 'fig_down', 'fig_h']
+                 'fig_v', 'fig_pca', 'fig_up', 'fig_down', 'fig_h',
+                 'k_res', 'g_res', 'string_df', 'tf_regulators']
                 for key in keys_to_reset:
                     if key in st.session_state:
                         if key == 'groups':
@@ -866,4 +864,4 @@ def run_app():
             )
             
 if __name__ == '__main__':
-    run_app()
+    run_app() 
