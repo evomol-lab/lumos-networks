@@ -102,7 +102,7 @@ if tf_source == "Import from APP":
         df_reg['Target'] = df_reg['Target'].str.upper().str.strip()
         df_reg = df_reg.drop_duplicates()
     else:
-        st.error("Dados regulatórios ausentes. Execute a aba 'Master Regulators' no APP primeiro.")
+        st.error("Regulatory data is missing. Open the “Master Regulators” tab in the app first.")
 else:
     uploaded_files = st.file_uploader("Upload Tables JASPAR/TRRUST (CSVs)", type=['csv'], accept_multiple_files=True)
     if uploaded_files:
