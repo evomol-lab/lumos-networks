@@ -4,7 +4,11 @@ import numpy as np
 import plotly.express as px
 import gseapy as gp
 import requests
+import time
+import json
+import cloudscraper
 from streamlit_agraph import agraph, Node, Edge, Config
+
 
 st.set_page_config(layout="wide", page_title="Arithmancy Pathway Profiler")
 
@@ -81,13 +85,53 @@ def run_enrichr(gene_list, gene_sets):
     try:
         clean_genes = list(set([str(g).strip().upper() for g in gene_list if str(g).strip().lower() != 'nan' and g != ""]))
         if not clean_genes: return None
-        enr = gp.enrichr(gene_list=clean_genes, gene_sets=gene_sets, organism='human', outdir=None)
-        df = enr.results
-        if df is None or df.empty: return None
+        if len(clean_genes) > 2000: clean_genes = clean_genes[:2000]
+
+        # Inicia o motor especializado em burlar o Cloudflare
+        scraper = cloudscraper.create_scraper(browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        })
+        
+        add_url = 'https://maayanlab.cloud/Enrichr/addList'
+        payload = {'list': (None, '\n'.join(clean_genes)), 'description': (None, 'Lumos_App')}
+        
+        resp = scraper.post(add_url, files=payload, timeout=15)
+        
+        if not resp.ok:
+            time.sleep(2)
+            resp = scraper.post(add_url, files=payload, timeout=15)
+            if not resp.ok: return None
+            
+        user_list_id = json.loads(resp.text)['userListId']
+        
+        time.sleep(1.5) 
+        
+        enrich_url = f'https://maayanlab.cloud/Enrichr/enrich?userListId={user_list_id}&backgroundType={gene_sets}'
+        resp_res = scraper.get(enrich_url, timeout=15)
+        
+        if not resp_res.ok: return None
+        data = json.loads(resp_res.text)
+        
+        if gene_sets not in data: return None
+        
+        cols = ['Rank', 'Term', 'P-value', 'Z-score', 'Combined Score', 'Genes_list', 'Adjusted P-value', 'Old P-value', 'Old Adjusted P-value']
+        df = pd.DataFrame(data[gene_sets], columns=cols)
+        
+        if df.empty: return None
+        
+        df['Genes'] = df['Genes_list'].apply(lambda x: ";".join(x))
+        df['Overlap'] = df['Genes_list'].apply(lambda x: f"{len(x)}/100") 
+        
         df = df[~df['Term'].str.contains('Mouse|Mus musculus|Rat|Murine', case=False, na=False)]
         df['-log10(FDR)'] = -np.log10(df['Adjusted P-value'] + 1e-10)
+        
         return df.sort_values('Adjusted P-value')
-    except: return None
+        
+    except Exception as e:
+        print(f"Erro no Scraper Enrichr: {e}")
+        return None
 
 @st.cache_data(show_spinner=False)
 def fetch_string_network(genes, confidence=400, max_nodes=150):
@@ -106,7 +150,21 @@ st.title("Arithmancy Pathway Profiler 🕸️🍲")
 
 with st.sidebar:
     st.header("1. Data Entry")
-    uploaded_files = st.file_uploader("Upload CSVs (App 1)", type=['csv'], accept_multiple_files=True)
+    data_source = st.radio("Data Source:", ["Import from DDEA", "Upload CSVs"])
+
+    df_full = pd.DataFrame()
+    if data_source == "Import from DDEA":
+        if 'df_diff' in st.session_state and not st.session_state['df_diff'].empty:
+            df_full = st.session_state['df_diff'].copy()
+            st.success("Dados importados do DDEA com sucesso.")
+        else:
+            st.warning("Nenhum dado encontrado. Execute a análise no módulo DDEA primeiro.")
+    else:
+        uploaded_files = st.file_uploader("Upload CSVs (App 1)", type=['csv'], accept_multiple_files=True)
+        if uploaded_files:
+            all_dfs = [pd.read_csv(f) for f in uploaded_files]
+            df_full = pd.concat(all_dfs)
+            
     st.divider()
     st.header("2. Filters and Settings")
     fdr_cut = st.number_input("FDR Cutoff:", value=0.05, format="%.3f")
@@ -118,9 +176,18 @@ with st.sidebar:
     g_width = st.slider("Net width:", 600, 1800, 1100, 50)
     g_height = st.slider("Net height:", 400, 1200, 800, 50)
 
-if uploaded_files:
-    all_dfs = [pd.read_csv(f) for f in uploaded_files]
-    df_full = pd.concat(all_dfs)
+if not df_full.empty:
+    with st.sidebar:
+        st.divider()
+        st.header("3. Data Selection")
+        # O usuário pode remover genes específicos antes de rodar o Enrichr
+        all_symbols = df_full['Symbol'].dropna().astype(str).str.strip().str.upper().unique()
+        selected_genes = st.multiselect("Select genes for functional analysis:", all_symbols, default=all_symbols)
+        
+        # Filtra o dataframe principal com base na seleção
+        df_full = df_full[df_full['Symbol'].isin(selected_genes)]
+
+    # O resto do código continua exatamente como era
     raw_symbols = df_full['Symbol'].dropna().astype(str).str.strip().str.upper().tolist()
     unique_symbols = sorted(list(set(raw_symbols)))
     
@@ -231,9 +298,10 @@ if uploaded_files:
             df_final = res_tf[res_tf['Adjusted P-value'] <= fdr_viz].copy()
             st.plotly_chart(px.bar(df_final.head(20), x='-log10(FDR)', y='TF_Symbol', orientation='h', color='Adjusted P-value', color_continuous_scale='Viridis_r'), use_container_width=True)
             export_df = df_final[['TF_Symbol', 'Genes', 'Adjusted P-value', 'Overlap']].copy()
+            st.session_state['tf_regulators'] = export_df # ESSE COMANDO É OBRIGATÓRIO PARA CONECTAR AO PG.PY
             st.dataframe(export_df, use_container_width=True)
             st.download_button("📥 Download CSV for App 3", export_df.to_csv(index=False).encode('utf-8'), "lumos_regulation_table.csv")
         else:
             st.error("Error loading regulators.")
 else:
-    st.info("Waiting for CSVs.")
+    st.info("Waiting for data entry.")
