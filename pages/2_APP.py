@@ -156,9 +156,9 @@ with st.sidebar:
     if data_source == "Import from DDEA":
         if 'df_diff' in st.session_state and not st.session_state['df_diff'].empty:
             df_full = st.session_state['df_diff'].copy()
-            st.success("Dados importados do DDEA com sucesso.")
+            st.success("Data successfully imported from DDEA.")
         else:
-            st.warning("Nenhum dado encontrado. Execute a análise no módulo DDEA primeiro.")
+            st.warning("No data found. Run the analysis in the DDEA module first.")
     else:
         uploaded_files = st.file_uploader("Upload CSVs (App 1)", type=['csv'], accept_multiple_files=True)
         if uploaded_files:
