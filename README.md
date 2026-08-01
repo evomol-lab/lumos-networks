@@ -137,11 +137,10 @@ The repository follows the Streamlit Multipage pattern:
 text
 ______________________________________________________
 lumos-networks/
-├── .devcontainer/         # Configurations for an isolated development environment
 ├── Dockerfile             # Containerization and deployment configuration
 ├── assets/                # Logos, images, and visual documentation
 ├── fonts/                 # Custom font files for the Streamlit UI
-├── packages/              # Core logic, statistical functions, and reusable classes
+├── packages               # Core logic, statistical functions, and reusable classes
 ├── pages/                 # Streamlit multipage application pages (DDEA, APP, PrioriGraph)
 ├── LICENSE                # Apache License 2.0 text
 ├── Lumos_Home.py          # Main file (App entry point)
