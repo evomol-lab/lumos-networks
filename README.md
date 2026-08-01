@@ -1,6 +1,6 @@
 
 
-<img width="540" height="500" alt="Lumos Networks" src="https://github.com/user-attachments/assets/126e70c5-159f-47cd-b2fe-a7533de62d89" />
+<img width="540" height="480" alt="Lumos Networks" src="https://github.com/user-attachments/assets/126e70c5-159f-47cd-b2fe-a7533de62d89" />
 
 
 ## Lumos Networks 🧬
