@@ -36,7 +36,7 @@ Entrez.email = "ddea.tool@example.com"
 # 3. Gerenciamento de Caminhos e Logo
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Pasta 'pages'
 PARENT_DIR = os.path.dirname(BASE_DIR) # Raiz do projeto
-LOGO_PATH = os.path.join(PARENT_DIR, "Lumos Networks.png")
+LOGO_PATH = os.path.join(PARENT_DIR, "assets", "Lumos Networks.png")
 
 # 4. CSS Estilizado
 st.markdown("""
@@ -84,7 +84,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(FILE_DIR)
 
 # 3. Apontar para o arquivo que está solto na 'src'
-logo_path = os.path.join(PARENT_DIR, "DDEA.png")
+logo_path = os.path.join(PARENT_DIR,"assets", "DDEA.png")
 
 with st.sidebar:
     if os.path.exists(logo_path):
@@ -864,4 +864,4 @@ def run_app():
             )
             
 if __name__ == '__main__':
-    run_app()
+    run_app() 
