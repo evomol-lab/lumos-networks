@@ -40,7 +40,7 @@ Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Se
 * **Output:** Volcano plots, MA plots, interactive result tables, and automated PDF reporting via fpdf2.
 
 
-<img width="260" height="200" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
+<img width="290" height="200" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
 
 
 
