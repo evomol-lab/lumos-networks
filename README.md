@@ -101,7 +101,7 @@ ______________________________________________________
 ______________________________________________________
 ⚙ **5. Installation & Execution**
 
-### Option A: Docker Deployment (Recommended)
+### Docker Deployment
 To guarantee environment reproducibility, build and run the application via Docker:
 
 ```bash
@@ -229,7 +229,7 @@ AI assistance was specifically utilized for:
 
 _____________________________________________________________________________________
 ### Contact
-Questions or suggestions? Reach out to jpmslima@gmail.com ; lais.de.carvalho89@gmail.com ; evomol.lab.hogwarts@gmail.com
+Questions or suggestions? Reach out to jpmslima@gmail.com
 
 ________________________________________________________________________________
 
