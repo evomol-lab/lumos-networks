@@ -2,12 +2,6 @@
 <img width="540" height="450" alt="Lumos Networks" src="https://github.com/evomol-lab/lumos-networks/blob/ab02bde0686f724762126cb88e0a4085556728f8/assets/Lumos%20Networks.png" />
 
 
-<img width="540" height="450" alt="Lumos Networks" src="https://github.com/evomol-lab/lumos-networks/blob/111ccd4b2d08c3af9d81d88181dbbd0ba81cd94c/assets/Lumos%20Nexus.png" />
-
-
-<img width="540" height="450" alt="Lumos Networks" src="https://github.com/evomol-lab/lumos-networks/blob/25d9efc53274244b2a08f49b8673dac719bff44f/assets/LumosPy.png" />
-
-
 ## Lumos Networks 🧬
 An Integrated Suite for Transcriptomics and Biological Network Analysis
 
@@ -27,12 +21,13 @@ Lumos is organized into three specialized modules, accessible via the sidebar in
 <img width="250" height="350" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
 
 
-
 📊 **a. DDEA (Diagonal Differential Expression Analysis)**
 
 Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq. Differential expression analysis utilizes the generalized linear model (GLM) of the Negative Binomial family:
 
-<img width="200" height="78" alt="calculo" src="https://github.com/user-attachments/assets/92c1af98-8873-4805-b116-bbe6d7d19b54" />
+
+<img width="200" height="78" alt="calculo" src="https://github.com/evomol-lab/lumos-networks/blob/9cf53d4fb93857ccea1da67205e3eeb906e64a1a/assets/APP.png" />
+
 
 * **Shrinkage Estimation:** We implemented empirical Bayesian dispersion estimation to stabilize fold change in genes with low counts, reducing technical noise and false positives.
 
