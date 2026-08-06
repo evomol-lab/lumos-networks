@@ -21,13 +21,14 @@ Lumos is organized into three specialized modules, accessible via the sidebar in
 <img width="250" height="350" alt="DDEA" src="https://github.com/user-attachments/assets/a7afe547-b1e9-4dd1-8407-aa5a47aef8ed" />
 
 
+
 📊 **a. DDEA (Diagonal Differential Expression Analysis)**
 
 Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Seq. Differential expression analysis utilizes the generalized linear model (GLM) of the Negative Binomial family:
 
 
-<img width="200" height="78" alt="calculo" src="https://github.com/evomol-lab/lumos-networks/blob/9cf53d4fb93857ccea1da67205e3eeb906e64a1a/assets/APP.png" />
 
+<img width="200" height="78" alt="calculo" src="" />
 
 * **Shrinkage Estimation:** We implemented empirical Bayesian dispersion estimation to stabilize fold change in genes with low counts, reducing technical noise and false positives.
 
@@ -40,7 +41,7 @@ Powered by PyDESeq2, this module handles the statistical heavy lifting of RNA-Se
 * **Output:** Volcano plots, MA plots, interactive result tables, and automated PDF reporting via fpdf2.
 
 
-<img width="320" height="200" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/user-attachments/assets/33fd5ac2-f63a-416f-b214-9bbe4e45ef45" />
+<img width="320" height="200" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/evomol-lab/lumos-networks/blob/9cf53d4fb93857ccea1da67205e3eeb906e64a1a/assets/APP.png" />
 
 
 
