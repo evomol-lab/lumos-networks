@@ -1,3 +1,6 @@
+<img width="540" height="450" alt="Lumos Networks" src="https://github.com/evomol-lab/lumos-networks/blob/111ccd4b2d08c3af9d81d88181dbbd0ba81cd94c/assets/Lumos%20Nexus.png" />
+
+
 <img width="540" height="450" alt="Lumos Networks" src="https://github.com/evomol-lab/lumos-networks/blob/25d9efc53274244b2a08f49b8673dac719bff44f/assets/LumosPy.png" />
 
 
