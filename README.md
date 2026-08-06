@@ -56,8 +56,7 @@ A functional enrichment module using GSEApy. Unlike simple list tools, the APP m
 **Databases:** Integrated support for KEGG, Gene Ontology (GO) String and JASPAR/TRRUST.
 
 
-<img src="https://github.com/user-attachments/assets/48efb59a-0c1d-4a4e-8c6b-081a9d54dd1f" width="200" alt="PrioriGraph Module Preview">
-</details>
+<img width="320" height="320" alt="Arithmancy Pathway Profiler (APP) " src="https://github.com/evomol-lab/lumos-networks/blob/9cf53d4fb93857ccea1da67205e3eeb906e64a1a/assets/PG.png" />
 
 
 
