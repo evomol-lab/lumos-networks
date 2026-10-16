@@ -9,11 +9,7 @@ BioME/UFRN. The current suite contains three connected modules:
 2. **APP — Arithmancy Pathway Profiler**
 3. **PG — PrioriGraph**
 
-Boolean Network Analysis (BNA) is intentionally maintained as a separate
-application and is not part of this release.
 
-> Status: `v1.3.0-beta`. Lumos is hypothesis-generating research software, not
-> a clinical diagnostic system.
 
 ## What each module computes
 
@@ -98,24 +94,9 @@ JSON downloads provide durable, reviewable hand-offs.
   p-value when those fields are available.
 - Personalized RWR conserves probability at dangling nodes and exposes the
   restart probability.
-- The signed propagation score is explicitly a linear heuristic
-  `(I - λW)^-1 E`; it is not described as SPIA.
 - Sensitivity analysis perturbs FDR, absolute-effect, RWR-restart and propagation-
   decay parameters and reports configuration coverage, top-k frequency, rank IQR
   and score variability for every node.
-
-## Known limitations
-
-- The UI supports two-condition contrasts with additive batch, covariate and
-  paired-subject terms. Arbitrary interaction and spline terms are not exposed.
-- Automatic GEO retrieval cannot guarantee that every heterogeneous
-  supplementary-file layout is interpreted correctly. Ambiguous or duplicated
-  GSM mappings are now rejected; every accession still requires human review.
-- Speedrichr, STRING, GEO and knowledge-library contents are external and may
-  change. Archive manifests and complete results for each publication.
-- Network scores depend on filtering and prior-knowledge coverage. Sensitivity
-  analysis quantifies parameter dependence, not biological uncertainty;
-  independent validation remains necessary.
 
 ## Installation
 
@@ -123,30 +104,8 @@ JSON downloads provide durable, reviewable hand-offs.
 
 #### Obtain Docker image from Docker Hub
 
-To download the latest version, run the following command in your terminal:
-
-```bash
-docker pull evomol/lumos-networks:latest
-```
-
-And run the image:
-
-```bash
-docker run --rm -p 8501:8501 -e NCBI_EMAIL=you@institution.edu evomol/lumos-networks:latest
-```
-
-Open <http://localhost:8501>.
 
 #### Build Docker image locally
-
-```bash
-git clone https://github.com/evomol-lab/lumos-networks.git
-cd lumos-networks
-docker build -t lumos-networks:latest .
-docker run --rm -p 8501:8501 -e NCBI_EMAIL=you@institution.edu lumos-networks:latest
-```
-
-Open <http://localhost:8501>.
 
 ### Local Python
 
@@ -159,8 +118,6 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 streamlit run Lumos_Home.py
 ```
-
-Set `NCBI_EMAIL` to a monitored address before GEO/NCBI use.
 
 ## Tests
 
@@ -183,49 +140,15 @@ network sensitivity. GitHub Actions additionally define:
 
 ## Project structure
 
-```text
-lumos-networks/
-├── assets/
-├── pages/
-│   ├── 1_DDEA.py
-│   ├── 2_APP.py
-│   ├── 3_PG.py
-│   └── Documentation.py
-├── tests/
-│   └── test_lumos_core.py
-├── r/
-│   ├── limma_backend.R
-│   ├── deseq2_reference.R
-│   └── public_e2e_geo_counts.R
-├── scripts/
-├── .github/workflows/
-├── Dockerfile
-├── Lumos_Home.py
-├── lumos_core.py
-├── lumos_report.py
-├── requirements.txt
-├── CITATION.cff
-└── README.md
-```
 
 ## Reproducible reporting checklist
 
-- Report Lumos and Python/package versions from the DDEA manifest.
-- Record GEO accession, matrix source, selected GSMs, reference/test direction,
-  filtering, FDR, and absolute effect threshold.
-- For meta-analysis, report estimator and inspect Q, I², and tau².
-- For ORA, archive the submitted genes, library name, query date, and complete
-  returned table.
-- For STRING, report species, network type, required score, and query date.
-- For PrioriGraph, archive the displayed edge table and propagation parameters.
-- Archive the HTML report of each module (figures, tables and parameters) as supplementary material.
-- Validate key findings in an independent cohort or experimental system.
 
 ## Development team
 
-- Dr. João Paulo M. S. Lima — Principal Investigator
-- MSc. Laís de Carvalho Gonçalves — PhD Student and Lead Developer
-- Rodrigo Arruda Orvate — Master's Student and Developer
+- Dr. João Paulo M. S. Lima —
+- MSc. Laís de Carvalho Gonçalves —
+- Rodrigo Arruda Orvate — 
 
 Laboratory of Molecular Evolution and Systems Biology (EvoMol-Lab), BioME,
 Federal University of Rio Grande do Norte (UFRN), Natal, Brazil.
@@ -262,4 +185,4 @@ the OSI-approved Apache License 2.0; see `LICENSE` and `NOTICE`.
 release for Zenodo archival. No DOI is claimed until the repository owners link
 the repository to Zenodo and publish the release record.
 
-Contact: jpmslima@gmail.com
+Contact: jpmslima@gmail.com or lais.goncalves.034@ufrn.edu.br
