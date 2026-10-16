@@ -1933,9 +1933,32 @@ def standard_topology(reg, network_genes):
     return rows
 
 
+PG_THRESHOLDS = (0.01, 0.05, 0.1, 0.25, 1.0)
+
+
+def pg_diagnostics(s, term_fdr, tf_fdr):
+    """How many terms and regulators pass each FDR threshold, to explain (and fix) an empty network."""
+    regs = [r for r in s.get('regulators', []) if r['fdr'] is not None]
+    terms = {}
+    for lib in s['libraries']:
+        if lib['role'] == 'pathway':
+            for t in lib['terms']:
+                if t['fdr'] is not None:
+                    terms[t['term']] = min(t['fdr'], terms.get(t['term'], 1.0))
+    best = min(regs, key=lambda r: r['fdr']) if regs else None
+    return {'thresholds': list(PG_THRESHOLDS),
+            'regulator_counts': [len({r['tf'] for r in regs if r['fdr'] <= t}) for t in PG_THRESHOLDS],
+            'term_counts': [sum(1 for f in terms.values() if f <= t) for t in PG_THRESHOLDS],
+            'best_regulator': {'tf': best['tf'], 'library': best['library'], 'fdr': fnum(best['fdr'])} if best else None,
+            'best_term_fdr': fnum(min(terms.values())) if terms else None,
+            'regulators_passing': len({r['tf'] for r in regs if r['fdr'] <= tf_fdr}),
+            'terms_passing': sum(1 for f in terms.values() if f <= term_fdr)}
+
+
 def priorigraph(enrich_dir, n_terms=6, term_fdr=0.05, tf_fdr=0.05):
     """PrioriGraph: candidate regulators -> target genes <- top enriched terms, with rankings."""
     s, terms, reg, ev, status = _pg_inputs(enrich_dir, n_terms, term_fdr, tf_fdr)
+    diagnostics = pg_diagnostics(s, term_fdr, tf_fdr)
     targets_of = reg.groupby('TF')['Target'].apply(set).to_dict()
     all_targets = set(reg['Target'])
     nodes, edges, network_genes, used_terms = {}, [], set(), []
@@ -1960,8 +1983,11 @@ def priorigraph(enrich_dir, n_terms=6, term_fdr=0.05, tf_fdr=0.05):
                 node['kind'] = 'tf'
                 edges.append({'from': tf, 'to': gene, 'kind': 'regulation'})
     if not nodes:
+        reason = ('no_terms' if not diagnostics['terms_passing'] else
+                  'no_regulators' if not diagnostics['regulators_passing'] else 'no_overlap')
         return {'nodes': [], 'edges': [], 'regulators': [], 'targets': [], 'mapping': [], 'evidence': [],
-                'metrics': [], 'edge_table': [], 'stats': {}, 'genes': []}
+                'metrics': [], 'edge_table': [], 'stats': {}, 'genes': [], 'reason': reason,
+                'diagnostics': diagnostics}
     shown = reg[reg['Target'].isin(network_genes)]
     submitted = set(status)
     ev_map = ev.drop_duplicates('Symbol').set_index('Symbol')
@@ -1990,7 +2016,7 @@ def priorigraph(enrich_dir, n_terms=6, term_fdr=0.05, tf_fdr=0.05):
                    'fdr': fnum(r.FDR)} for r in shown.itertuples()]
     return {'nodes': list(nodes.values()), 'edges': edges, 'regulators': regulators, 'targets': targets,
             'mapping': mapping, 'evidence': evidence, 'metrics': standard_topology(reg, network_genes),
-            'edge_table': edge_table, 'genes': sorted(network_genes),
+            'edge_table': edge_table, 'genes': sorted(network_genes), 'reason': None, 'diagnostics': diagnostics,
             'stats': {'nodes': len(nodes), 'edges': len(edges), 'terms': len(used_terms),
                       'tfs': sum(1 for n in nodes.values() if n['kind'] == 'tf'), 'genes': len(network_genes),
                       'regulators_used': int(reg['TF'].nunique()), 'terms_screened': len(terms),

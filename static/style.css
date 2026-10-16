@@ -1552,6 +1552,15 @@ body.light-mode .table-wrap.scroll .data-table th {
     line-height: 1.6;
 }
 
+.callout.warn {
+    border-left-color: var(--chart-2);
+    background: rgba(235, 104, 52, 0.09);
+}
+
+.callout .link-btn {
+    margin: 8px 8px 0 0;
+}
+
 .callout ul {
     padding-left: 20px;
     margin-top: 6px;
