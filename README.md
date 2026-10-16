@@ -13,7 +13,18 @@ contains three connected modules:
 
 Everything is explained in the **Documentation** tab of the interface ([DOCUMENTATION.md](DOCUMENTATION.md)).
 
-## What's new in the Flask version (2.0 beta)
+## Quick start
+
+With [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/) installed, run
+
+```bash
+docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0
+```
+
+and open <http://localhost:5070>. The image includes Python, R and limma. To keep your jobs, use the
+command line or choose another port, see [Docker / Podman](#docker--podman).
+
+## What's new in version 2.0
 
 - **Local web interface** replacing the Streamlit pages: numbered steps, background jobs with
   progress, log and cancellation, light and dark themes, and the whole session (datasets, analyses,
@@ -128,6 +139,65 @@ hand-offs.
 
 ## Installation
 
+### Docker / Podman
+
+The recommended way to run Lumos Networks is the image
+[`evomol/lumos-networks`](https://hub.docker.com/r/evomol/lumos-networks) on Docker Hub. It contains
+Python, R and limma, so nothing else needs to be installed. The commands use `docker`; with
+[Podman](https://podman.io/), write `podman` instead. Lumos needs an internet connection for GEO,
+Enrichr, STRING and MyGene.info.
+
+**1. Download the image** (once, and again to update):
+
+```bash
+docker pull docker.io/evomol/lumos-networks:2.0.0     # or :latest for the newest release
+```
+
+**2. Start the web interface** and open <http://localhost:5070>:
+
+```bash
+docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0
+```
+
+Stop it with Ctrl+C. The jobs are kept inside the container and are lost when it stops. To keep them in
+a folder of your computer, mount that folder:
+
+```bash
+mkdir -p lumos_jobs
+docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/opt/lumos/lumos_jobs docker.io/evomol/lumos-networks:2.0.0
+```
+
+In Windows PowerShell, write the folder as `-v "${PWD}\lumos_jobs:/opt/lumos/lumos_jobs"`.
+
+| To | add to `docker run` |
+|---|---|
+| use another port, e.g. 8080 | `-p 8080:5070`, then open <http://localhost:8080> |
+| run in the background | `-d --name lumos` (log: `docker logs -f lumos`; stop: `docker stop lumos`) |
+| delete jobs older than 30 days at start-up | `-e LUMOS_JOB_RETENTION_DAYS=30` |
+| mount folders on SELinux systems (Fedora, RHEL) | `:Z` at the end of each `-v` option |
+| own the job files with rootful Docker on Linux | `--user "$(id -u):$(id -g)"` |
+| run on an Apple-silicon Mac | `--platform linux/amd64` (the image is x86-64 and runs through emulation) |
+
+**3. Command line.** The same image runs the engine on the files of the current folder:
+
+```bash
+alias lumos='docker run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.0.0 python /opt/lumos/lumos.py'
+lumos --help
+lumos dataset --geo GSE117769 --outdir run/data
+lumos de --dataset run/data --groups groups.json --reference Healthy --test RA \
+    --covariate gender --outdir run/de
+lumos enrich --source run/de --genes-up up.txt --genes-down down.txt --outdir run/app
+```
+
+**4. Check the image** (unit and engine tests, including limma):
+
+```bash
+docker run --rm docker.io/evomol/lumos-networks:2.0.0 python -m pytest -q /opt/lumos/tests
+```
+
+To build the image yourself from the repository: `docker build -t lumos-networks .` (with Podman,
+`podman build --format docker -t lumos-networks .` keeps the health check).
+
 ### Local Python
 
 Python 3.11 or newer.
@@ -146,18 +216,12 @@ limma also needs R with the Bioconductor package `limma` (`BiocManager::install(
 `r-bioc-limma` on Debian/Ubuntu). Without it, continuous data use the Welch t-test and the interface
 says so.
 
-### Docker / Podman (includes R and limma)
-
-```bash
-docker build -t lumos-networks .
-docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/app/lumos_jobs lumos-networks
-```
-
 ### Apptainer (HPC)
 
 ```bash
-apptainer build lumos.sif Apptainer.def
-mkdir -p lumos_jobs
+apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.0.0   # from Docker Hub
+apptainer build lumos.sif Apptainer.def                                     # or from the repository
+mkdir -p lumos_jobs                                  # the image is read-only: jobs need a writable folder
 apptainer run --bind lumos_jobs:/opt/lumos/lumos_jobs lumos.sif
 ```
 
@@ -182,7 +246,7 @@ without network access.
 python -m pip install pytest
 python -m pytest tests                      # all tests (limma tests run when R/limma is installed)
 python -m unittest discover -s tests -v     # lumos_core unit tests
-docker run --rm lumos-networks python -m pytest -q /app/tests
+docker run --rm docker.io/evomol/lumos-networks:2.0.0 python -m pytest -q /opt/lumos/tests
 ```
 
 The unit suite covers normalization, raw-count validation, experimental-design rank checks, paired

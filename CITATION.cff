@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use Lumos Networks, please cite the archived software release and the method/database references relevant to the modules used."
 title: "Lumos Networks: transcriptomic analysis, functional context, and prior-knowledge networks"
 type: software
-version: 1.3.0-beta
-date-released: 2026-09-15
+version: 2.0.0
+date-released: 2026-10-16
 repository-code: "https://github.com/evomol-lab/lumos-networks"
 authors:
   - family-names: "Lima"
