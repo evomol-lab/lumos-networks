@@ -1,0 +1,28 @@
+# Build context of the Lumos image: only what the Dockerfile copies.
+#
+# Everything is excluded first and the needed files are allowed back in, so new files
+# never reach the image by accident (.git/, .venv/, lumos_jobs/, assets/, screenshots/...).
+*
+
+!requirements.txt
+!lumos.py
+!lumos_core.py
+!lumos_report.py
+!LumosGUI.py
+!DOCUMENTATION.md
+!README.md
+!LICENSE
+!NOTICE
+!r
+!r/**
+!templates
+!templates/**
+!static
+!static/**
+!tests
+!tests/**
+
+# never inside the allowed folders either
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store

@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 
-__version__ = "1.3.0-beta"
+__version__ = "2.0.0-beta"
 
 
 def sanitize_design_name(name: str) -> str:

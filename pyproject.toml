@@ -1,0 +1,25 @@
+[project]
+name = "lumos-networks"
+version = "2.0.0b0"
+description = "Lumos Networks: transcriptomic analysis, functional context and prior-knowledge networks"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "flask>=3.0,<4",
+    "numpy>=1.26,<3",
+    "pandas>=2.0,<4",
+    "scipy>=1.11,<2",
+    "statsmodels>=0.14,<1",
+    "pydeseq2>=0.5.4,<0.6",
+    "networkx>=3.1,<4",
+    "plotly>=5.18,<8",
+    "requests>=2.31,<3",
+    "cloudscraper>=1.2.71,<2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.uv]
+package = false

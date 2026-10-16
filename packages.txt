@@ -1,4 +1,0 @@
-r-base-core
-r-bioc-limma
-r-cran-jsonlite
-r-cran-statmod
