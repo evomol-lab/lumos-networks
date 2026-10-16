@@ -324,6 +324,11 @@ def test_priorigraph_network_and_rankings(tmp_path):
     assert {m['node'] for m in g['metrics']} >= {'TF1', 'A'} and g['edge_table'][0]['library'] == 'TRRUST'
     strict = lumos.priorigraph(folder, n_terms=2, term_fdr=0.05, tf_fdr=0.05)
     assert all(n['id'] != 'TF2' for n in strict['nodes'])
+    empty = lumos.priorigraph(folder, n_terms=2, term_fdr=0.05, tf_fdr=0.005)     # no regulator passes
+    assert not empty['nodes'] and empty['reason'] == 'no_regulators'
+    diag = empty['diagnostics']
+    assert diag['regulator_counts'] == [1, 1, 1, 2, 2] and diag['best_regulator']['tf'] == 'TF1'
+    assert lumos.priorigraph(folder, n_terms=2, term_fdr=0.0001, tf_fdr=1.0)['reason'] == 'no_terms'
     prop = lumos.propagation(folder, 2, 0.05, 1.0, 0.7, 0.5)
     assert prop['converged'] and abs(sum(r['rwr'] for r in prop['rows']) - 1) < 1e-3
     sens = lumos.sensitivity(folder, 1.0, (0.01, 0.05), (0.5, 1.0), (0.5, 0.7), (0.25, 0.5), 3)

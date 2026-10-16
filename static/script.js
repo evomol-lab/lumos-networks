@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         libraries: [], tfLibraries: new Set(),
         stringData: null, stringNet: null,
         pg: null, pgNet: null, pgNodes: null, pgProp: null, pgSens: null,
+        pgAutoDone: false, pgRelaxed: null,          // automatic relaxation of the regulator FDR (first view only)
     };
 
     // ------------------------------------------------------------------ theme
@@ -2180,6 +2181,10 @@ document.addEventListener('DOMContentLoaded', () => {
         state.pg = null;
         state.pgProp = null;
         state.pgSens = null;
+        state.pgAutoDone = false;
+        state.pgRelaxed = null;
+        $('pg-fdr').value = '0.05';
+        $('pg-notice').classList.add('hidden');
         if (state.pgNet) { state.pgNet.destroy(); state.pgNet = null; }
         $('pg-msg').style.display = 'flex';
         $('pg-msg').textContent = 'Run the APP enrichment first.';
@@ -2189,17 +2194,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const pgQuery = () => new URLSearchParams({ terms: $('pg-n').value || 6, term_fdr: $('pg-term-fdr').value, tf_fdr: $('pg-fdr').value });
 
+    async function fetchPG() {
+        const r = await fetch(`/api/jobs/${state.appJob}/priorigraph?${pgQuery()}`);
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'PrioriGraph failed.');
+        return d;
+    }
+
     async function loadPG() {
         if (!state.appJob) return;
         $('pg-msg').style.display = 'flex';
         $('pg-msg').textContent = 'Building the network…';
         try {
-            const r = await fetch(`/api/jobs/${state.appJob}/priorigraph?${pgQuery()}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'PrioriGraph failed.');
+            let d = await fetchPG();
+            if (!state.pgAutoDone && !d.nodes.length && d.reason === 'no_regulators') {
+                // First view: no regulator reaches the default FDR. Show the least relaxed threshold that
+                // gives a network, and say so (exploratory), instead of an empty page.
+                const from = Number($('pg-fdr').value);
+                const diag = d.diagnostics;
+                for (const t of diag.thresholds.filter((x, k) => x > from && diag.regulator_counts[k] > 0)) {
+                    $('pg-fdr').value = String(t);
+                    const next = await fetchPG();
+                    if (next.nodes.length) { d = next; state.pgRelaxed = { from, to: t }; break; }
+                }
+                if (!state.pgRelaxed) $('pg-fdr').value = String(from);
+            }
+            state.pgAutoDone = true;
             state.pg = d;
             state.pgProp = null;
             state.pgSens = null;
+            renderPGNotice();
             drawPG();
             renderPGView();
         } catch (e) {
@@ -2208,7 +2232,63 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     $('pg-n').addEventListener('input', debounce(loadPG, 400));
     $('pg-term-fdr').addEventListener('change', loadPG);
-    $('pg-fdr').addEventListener('change', loadPG);
+    $('pg-fdr').addEventListener('change', () => { state.pgRelaxed = null; loadPG(); });
+
+    const fmtT = (t) => (t >= 1 ? 'any' : String(t));
+
+    // option labels with how many terms / regulators pass each threshold; notice explaining an empty network
+    function renderPGNotice() {
+        const d = state.pg, diag = d.diagnostics;
+        if (!diag) return;
+        const count = (list, t) => list[diag.thresholds.findIndex((x) => Math.abs(x - t) < 1e-9)];
+        [...$('pg-fdr').options].forEach((o) => {
+            const n = count(diag.regulator_counts, Number(o.value));
+            o.textContent = `${fmtT(Number(o.value))} · ${n ?? '?'} regulator${n === 1 ? '' : 's'}`;
+        });
+        [...$('pg-term-fdr').options].forEach((o) => {
+            const n = count(diag.term_counts, Number(o.value));
+            o.textContent = `${fmtT(Number(o.value))} · ${n ?? '?'} term${n === 1 ? '' : 's'}`;
+        });
+        const tf = Number($('pg-fdr').value), terms = Number($('pg-term-fdr').value);
+        const best = diag.best_regulator;
+        const bestText = best ? ` (best: ${esc(labelOfSymbol(best.tf))}, FDR ${fmtP(best.fdr)}, ${esc(best.library)})` : '';
+        const tfButtons = diag.thresholds.map((t, k) => ({ t, n: diag.regulator_counts[k] })).filter((x) => x.t > tf && x.n > 0)
+            .map((x) => `<button type="button" class="link-btn" data-pg-set="pg-fdr:${x.t}">${x.t >= 1 ? 'All regulators' : `Regulators with FDR ≤ ${x.t}`} (${x.n})</button>`).join('');
+        const termButtons = diag.thresholds.map((t, k) => ({ t, n: diag.term_counts[k] })).filter((x) => x.t > terms && x.n > 0)
+            .map((x) => `<button type="button" class="link-btn" data-pg-set="pg-term-fdr:${x.t}">${x.t >= 1 ? 'All terms' : `Terms with FDR ≤ ${x.t}`} (${x.n})</button>`).join('');
+        const strict = 0.05, nStrict = count(diag.regulator_counts, strict);
+        let html = '';
+        if (d.nodes.length && tf > strict) {
+            html = '<strong>Exploratory network.</strong> ' + (nStrict
+                ? `${nStrict} candidate regulator${nStrict === 1 ? ' has' : 's have'} FDR ≤ ${strict}; the network also includes `
+                : `No candidate regulator reaches FDR ≤ ${strict} for this gene list${bestText}; the network includes `) +
+                `regulators up to FDR ${fmtT(tf)} (${diag.regulators_passing}). Treat them as weak evidence.` +
+                (state.pgRelaxed ? ' This threshold was chosen automatically because the default one gave an empty network.' : '') +
+                `<br><button type="button" class="link-btn" data-pg-set="pg-fdr:${strict}">Back to FDR ≤ ${strict}</button>`;
+        } else if (!d.nodes.length && d.reason === 'no_regulators') {
+            html = `<strong>Empty network:</strong> no candidate regulator has FDR ≤ ${fmtT(tf)}${bestText}. ` +
+                'Regulator enrichment needs larger gene lists; allow a higher regulator FDR (exploratory) or add regulator libraries in APP.' +
+                `<br>${tfButtons}`;
+        } else if (!d.nodes.length && d.reason === 'no_terms') {
+            html = `<strong>Empty network:</strong> no enriched term has FDR ≤ ${fmtT(terms)}` +
+                (diag.best_term_fdr !== null ? ` (best term FDR ${fmtP(diag.best_term_fdr)})` : '') + '.<br>' + termButtons;
+        } else if (!d.nodes.length) {
+            html = `<strong>Empty network:</strong> none of the genes in the top ${esc($('pg-n').value)} terms is a target of the ` +
+                `${diag.regulators_passing} regulators with FDR ≤ ${fmtT(tf)}.<br>` +
+                '<button type="button" class="link-btn" data-pg-set="pg-n:25">Use 25 terms</button>' + tfButtons;
+        }
+        $('pg-notice').innerHTML = html;
+        $('pg-notice').classList.toggle('hidden', !html);
+    }
+
+    $('pg-notice').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-pg-set]');
+        if (!b) return;
+        const [id, value] = b.dataset.pgSet.split(':');
+        $(id).value = value;
+        if (id === 'pg-fdr') state.pgRelaxed = null;
+        loadPG();
+    });
     $('pg-search').addEventListener('input', debounce(() => drawPG(true), 250));
     $('pg-fit').addEventListener('click', () => { if (state.pgNet) state.pgNet.fit({ animation: true }); });
 
@@ -2251,9 +2331,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.pgNet) state.pgNet.destroy();
         $('pg-msg').style.display = d.nodes.length ? 'none' : 'flex';
         if (!d.nodes.length) {
-            $('pg-msg').textContent = 'No gene of the top terms is a target of the selected regulators; allow more terms or a higher FDR.';
+            $('pg-msg').textContent = 'Empty network: see the explanation above.';
             state.pgNet = null;
-            $('pg-tiles').innerHTML = '';
+            const diag = d.diagnostics || {};
+            $('pg-tiles').innerHTML = tile('Enriched terms passing', int(diag.terms_passing ?? 0), `FDR ≤ ${fmtT(Number($('pg-term-fdr').value))}`) +
+                tile('Regulators passing', int(diag.regulators_passing ?? 0), `FDR ≤ ${fmtT(Number($('pg-fdr').value))}`);
             return;
         }
         state.pgNodes = new vis.DataSet(nodes);
@@ -2520,6 +2602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 rows: d.edge_table.map((e) => [e.tf, e.target, e.library, e.direction, e.term, e.fdr]), sort: 'fdr', asc: true, filter: 'library' } });
             return { module: 'PG', title: `PrioriGraph: ${state.app.source.label}`, file_id: 'PG',
                 info: [['Gene source', state.app.source.label], ['Enriched terms', `top ${$('pg-n').value} with FDR ≤ ${$('pg-term-fdr').value}`], ['Regulators', `FDR ≤ ${$('pg-fdr').value} (${d.stats.tf_libraries.join(', ')})`],
+                    ...(Number($('pg-fdr').value) > 0.05 ? [['Note', `exploratory: includes candidate regulators with FDR up to ${$('pg-fdr').value}`]] : []),
                     ...(state.pgProp ? [['Propagation', `restart ${state.pgProp.restart}, decay ${state.pgProp.decay}`]] : [])],
                 cards: [['Nodes', d.stats.nodes, ''], ['Edges', d.stats.edges, ''], ['Terms', d.stats.terms, ''], ['Regulators', d.stats.tfs, ''], ['Targets', d.stats.genes, '']],
                 sections };

@@ -304,6 +304,11 @@ knowledge, $V_{network} = V_{DEG} \cap V_{curated}$: an edge exists only where a
 3. The regulators become squares with arrows to their targets; a regulator that is itself selected has
    a coloured border. Every edge keeps its database, term, list and FDR (**Edges with provenance**).
 
+The threshold menus show how many terms and regulators pass each FDR. Short gene lists often have no
+regulator with FDR ≤ 0.05: the first view then uses the least relaxed threshold that gives a network
+and labels it **exploratory**; an empty network is always explained (no term, no regulator, or no
+overlap between them) with buttons to relax the thresholds.
+
 ### Rankings and metrics
 
 * **Regulators**: unique targets in the network (out-degree), targets among all selected genes, best
