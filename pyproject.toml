@@ -1,6 +1,6 @@
 [project]
 name = "lumos-networks"
-version = "2.0.0b0"
+version = "2.0.0"
 description = "Lumos Networks: transcriptomic analysis, functional context and prior-knowledge networks"
 readme = "README.md"
 requires-python = ">=3.11"

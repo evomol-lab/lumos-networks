@@ -390,15 +390,17 @@ python LumosGUI.py
 
 limma needs R with the Bioconductor package (`BiocManager::install("limma")`, or `r-bioc-limma` on
 Debian/Ubuntu). Without it, continuous data use the Welch t-test and the interface says so. The
-container images include R and limma:
+container image (Docker Hub `evomol/lumos-networks`) includes R and limma:
 
 ```
-docker build -t lumos-networks .
-docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/app/lumos_jobs lumos-networks
+mkdir -p lumos_jobs
+docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/opt/lumos/lumos_jobs docker.io/evomol/lumos-networks:2.0.0
 
-apptainer build lumos.sif Apptainer.def
-mkdir -p lumos_jobs && apptainer run --bind lumos_jobs:/opt/lumos/lumos_jobs lumos.sif
+apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.0.0
+apptainer run --bind lumos_jobs:/opt/lumos/lumos_jobs lumos.sif
 ```
+
+With rootful Docker on Linux, add `--user "$(id -u):$(id -g)"` so the job files belong to you.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -441,7 +443,7 @@ Known limits:
 
 ## Changes in the Flask version
 
-Lumos Networks 2.0 (beta) moves the 1.3 Streamlit suite to a local Flask interface in the style of
+Lumos Networks 2.0 moves the 1.3 Streamlit suite to a local Flask interface in the style of
 Sauron and The Room of Conformations, keeping its methods (`lumos_core.py`, `lumos_report.py`,
 `r/limma_backend.R`):
 
