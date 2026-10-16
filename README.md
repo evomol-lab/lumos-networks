@@ -182,7 +182,6 @@ Copyright © 2026 EvoMol-Lab/BioME/UFRN. Lumos Networks is distributed under
 the OSI-approved Apache License 2.0; see `LICENSE` and `NOTICE`.
 
 `CITATION.cff`, `.zenodo.json` and `RELEASE_CHECKLIST.md` prepare a tagged GitHub
-release for Zenodo archival. No DOI is claimed until the repository owners link
-the repository to Zenodo and publish the release record.
+release for Zenodo archival. 
 
 Contact: jpmslima@gmail.com or lais.goncalves.034@ufrn.edu.br
