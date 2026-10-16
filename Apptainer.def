@@ -1,0 +1,61 @@
+Bootstrap: docker
+From: docker.io/library/python:3.11-slim-bookworm
+
+# Same environment as the Dockerfile (Python + R/Bioconductor limma). Build from the
+# repository root:
+#   apptainer build lumos.sif Apptainer.def
+
+%labels
+    Title Lumos Networks
+    Source https://github.com/evomol-lab/lumos-networks
+    Vendor EvoMol-Lab, BioME, UFRN
+    License Apache-2.0
+
+%help
+    Web interface (http://localhost:5070). The image is read-only, so jobs go to a
+    writable host directory bound to /opt/lumos/lumos_jobs:
+        mkdir -p lumos_jobs
+        apptainer run --bind lumos_jobs:/opt/lumos/lumos_jobs lumos.sif
+
+    Command line (results in the current directory):
+        apptainer run --app cli lumos.sif dataset --geo GSE117769 --outdir data
+
+%files
+    requirements.txt /opt/lumos/requirements.txt
+    lumos.py /opt/lumos/lumos.py
+    lumos_core.py /opt/lumos/lumos_core.py
+    lumos_report.py /opt/lumos/lumos_report.py
+    LumosGUI.py /opt/lumos/LumosGUI.py
+    DOCUMENTATION.md /opt/lumos/DOCUMENTATION.md
+    README.md /opt/lumos/README.md
+    LICENSE /opt/lumos/LICENSE
+    NOTICE /opt/lumos/NOTICE
+    r /opt/lumos/r
+    templates /opt/lumos/templates
+    static /opt/lumos/static
+
+%post
+    export PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 DEBIAN_FRONTEND=noninteractive
+    apt-get update && apt-get install -y --no-install-recommends \
+        r-base-core r-bioc-limma r-cran-jsonlite r-cran-statmod
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+    python -m venv /opt/venv
+    /opt/venv/bin/pip install -r /opt/lumos/requirements.txt
+    mkdir -p /opt/lumos/lumos_jobs
+    chmod 777 /opt/lumos/lumos_jobs
+
+%environment
+    export PATH=/opt/venv/bin:$PATH
+    export LC_ALL=C.UTF-8
+    export PYTHONUNBUFFERED=1
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONPATH=/opt/lumos
+    export LUMOS_HOST=0.0.0.0
+    export LUMOS_PORT=5070
+    export LUMOS_JOBS_DIR=/opt/lumos/lumos_jobs
+
+%runscript
+    exec python /opt/lumos/LumosGUI.py "$@"
+
+%apprun cli
+    exec python /opt/lumos/lumos.py "$@"
