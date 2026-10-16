@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use Lumos Networks, please cite the archived software release and the method/database references relevant to the modules used."
+title: "Lumos Networks: transcriptomic analysis, functional context, and prior-knowledge networks"
+type: software
+version: 1.3.0-beta
+date-released: 2026-09-15
+repository-code: "https://github.com/evomol-lab/lumos-networks"
+authors:
+  - family-names: "Lima"
+    given-names: "João Paulo M. S."
+  - family-names: "Gonçalves"
+    given-names: "Laís de Carvalho"
+  - family-names: "Orvate"
+    given-names: "Rodrigo Arruda"
+keywords:
+  - transcriptomics
+  - differential expression
+  - enrichment analysis
+  - gene regulatory networks
+  - systems biology
+license: Apache-2.0

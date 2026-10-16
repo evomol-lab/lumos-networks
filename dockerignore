@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+__pycache__
+**/__pycache__
+*.py[cod]
+*.zip
+*.sha256
+benchmark_data
+scripts
+public_e2e
+SCIENTIFIC_AUDIT.md
+VALIDATION_REPORT.md
+RELEASE_CHECKLIST.md
+CHANGELOG.md
