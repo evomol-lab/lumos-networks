@@ -32,7 +32,7 @@ Everything is explained in the **Documentation** tab of the interface ([DOCUMENT
 
 <a id="important-changes"></a>
 
-## ⚠️ Important changes since 2.0.0
+## ⚠️ Important changes in 2.1.0
 
 > [!IMPORTANT]
 > **The enrichment statistics of APP changed (FDR).** Version 2.0.0 sent the gene lists to Enrichr's
