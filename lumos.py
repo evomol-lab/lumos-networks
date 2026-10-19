@@ -1736,15 +1736,25 @@ def library_sets(name):
         if not os.path.exists(path) or time.time() - os.path.getmtime(path) > 30 * 86400:
             say(f'Downloading the {name} library from Enrichr')
             try:
-                r = session().get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name}, timeout=300)
-                if r.status_code == 403:
-                    s = _cloudscraper()
-                    if s:
-                        r = s.get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name},
-                                  timeout=300)
-                r.raise_for_status()
+                for attempt in range(3):          # Enrichr sometimes cuts long downloads short
+                    try:
+                        r = session().get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name},
+                                          timeout=300)
+                        if r.status_code == 403:
+                            s = _cloudscraper()
+                            if s:
+                                r = s.get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name},
+                                          timeout=300)
+                        r.raise_for_status()
+                        text = r.text
+                        break
+                    except Exception as exc:
+                        if attempt == 2:
+                            raise
+                        say(f'{name}: download interrupted ({type(exc).__name__}); trying again')
+                        time.sleep(2 * (attempt + 1))
                 with open(path + '.tmp', 'w', encoding='utf-8') as fh:
-                    fh.write(r.text)
+                    fh.write(text)
                 os.replace(path + '.tmp', path)
             except Exception as exc:
                 if not os.path.exists(path):
