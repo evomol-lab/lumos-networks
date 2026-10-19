@@ -8,7 +8,7 @@
 
 <br/>
 
-[![Version](https://img.shields.io/badge/version-2.0.0-244768?style=for-the-badge)](https://github.com/evomol-lab/lumos-networks/tree/flask-version)
+[![Version](https://img.shields.io/badge/version-2.1.0-244768?style=for-the-badge)](https://github.com/evomol-lab/lumos-networks/tree/flask-version)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](#local-python)
 [![Flask](https://img.shields.io/badge/Interface-Flask-263238?style=for-the-badge&logo=flask&logoColor=white)](#whats-new-in-version-20)
 [![License](https://img.shields.io/badge/License-Apache%202.0-2C7A7B?style=for-the-badge)](LICENSE)
@@ -82,7 +82,7 @@ Other changes worth knowing:
 With [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/) installed, run
 
 ```bash
-docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0
+docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.1.0
 ```
 
 and open <http://localhost:5070>. The image includes Python, R and limma. To keep your jobs, use the
@@ -256,13 +256,13 @@ docker run --rm --pull always -p 5070:5070 docker.io/evomol/lumos-networks:lates
 **1. Download the image** (once, and again to update):
 
 ```bash
-docker pull docker.io/evomol/lumos-networks:2.0.0     # or :latest for the newest release
+docker pull docker.io/evomol/lumos-networks:2.1.0     # or :latest for the newest release
 ```
 
 **2. Start the web interface** and open <http://localhost:5070>:
 
 ```bash
-docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0
+docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.1.0
 ```
 
 Stop it with Ctrl+C. The jobs are kept inside the container and are lost when it stops. To keep them in
@@ -270,7 +270,7 @@ a folder of your computer, mount that folder:
 
 ```bash
 mkdir -p lumos_jobs
-docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/opt/lumos/lumos_jobs docker.io/evomol/lumos-networks:2.0.0
+docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/opt/lumos/lumos_jobs docker.io/evomol/lumos-networks:2.1.0
 ```
 
 In Windows PowerShell, write the folder as `-v "${PWD}\lumos_jobs:/opt/lumos/lumos_jobs"`.
@@ -287,7 +287,7 @@ In Windows PowerShell, write the folder as `-v "${PWD}\lumos_jobs:/opt/lumos/lum
 **3. Command line.** The same image runs the engine on the files of the current folder:
 
 ```bash
-alias lumos='docker run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.0.0 python /opt/lumos/lumos.py'
+alias lumos='docker run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.1.0 python /opt/lumos/lumos.py'
 lumos --help
 lumos dataset --geo GSE117769 --outdir run/data
 lumos de --dataset run/data --groups groups.json --reference Healthy --test RA \
@@ -298,7 +298,7 @@ lumos enrich --source run/de --genes-up up.txt --genes-down down.txt --outdir ru
 **4. Check the image** (unit and engine tests, including limma):
 
 ```bash
-docker run --rm docker.io/evomol/lumos-networks:2.0.0 python -m pytest -q /opt/lumos/tests
+docker run --rm docker.io/evomol/lumos-networks:2.1.0 python -m pytest -q /opt/lumos/tests
 ```
 
 To build the image yourself from the repository: `docker build -t lumos-networks .` (with Podman,
@@ -325,7 +325,7 @@ says so.
 ### Apptainer (HPC)
 
 ```bash
-apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.0.0   # from Docker Hub
+apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.1.0   # from Docker Hub
 apptainer build lumos.sif Apptainer.def                                     # or from the repository
 mkdir -p lumos_jobs                                  # the image is read-only: jobs need a writable folder
 apptainer run --bind lumos_jobs:/opt/lumos/lumos_jobs lumos.sif
@@ -354,7 +354,7 @@ without network access.
 python -m pip install pytest
 python -m pytest tests                      # all tests (limma tests run when R/limma is installed)
 python -m unittest discover -s tests -v     # lumos_core unit tests
-docker run --rm docker.io/evomol/lumos-networks:2.0.0 python -m pytest -q /opt/lumos/tests
+docker run --rm docker.io/evomol/lumos-networks:2.1.0 python -m pytest -q /opt/lumos/tests
 ```
 
 The unit suite covers normalization, raw-count validation, experimental-design rank checks, paired

@@ -5,11 +5,11 @@ From: docker.io/library/python:3.11-slim-bookworm
 # repository root:
 #   apptainer build lumos.sif Apptainer.def
 # or convert the published Docker image (same paths and bind):
-#   apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.0.0
+#   apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.1.0
 
 %labels
     Title Lumos Networks
-    Version 2.0.0
+    Version 2.1.0
     Source https://github.com/evomol-lab/lumos-networks
     Vendor EvoMol-Lab, BioME, UFRN
     License Apache-2.0

@@ -410,9 +410,9 @@ container image (Docker Hub `evomol/lumos-networks`) includes R and limma:
 
 ```
 mkdir -p lumos_jobs
-docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/opt/lumos/lumos_jobs docker.io/evomol/lumos-networks:2.0.0
+docker run --rm -p 5070:5070 -v "$PWD/lumos_jobs":/opt/lumos/lumos_jobs docker.io/evomol/lumos-networks:2.1.0
 
-apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.0.0
+apptainer build lumos.sif docker://docker.io/evomol/lumos-networks:2.1.0
 apptainer run --bind lumos_jobs:/opt/lumos/lumos_jobs lumos.sif
 ```
 

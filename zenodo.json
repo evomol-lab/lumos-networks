@@ -1,7 +1,7 @@
 {
   "title": "Lumos Networks: transcriptomic analysis, functional context, and prior-knowledge networks",
   "description": "A transparent three-module workflow comprising DDEA, APP, and PrioriGraph, with a local Flask web interface, a command line and container images (Docker Hub: evomol/lumos-networks).",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "Apache-2.0",
   "upload_type": "software",
   "access_right": "open",
