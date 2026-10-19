@@ -1,6 +1,23 @@
+<div align="center">
+
+<img src="assets/Lumos-logo.png" alt="Lumos Networks — EvoMol-Lab" width="460" />
+
 # Lumos Networks
 
 **A transparent three-stage workflow for transcriptomic analysis, functional context, and prior-knowledge networks**
+
+<br/>
+
+[![Version](https://img.shields.io/badge/version-2.0.0-244768?style=for-the-badge)](https://github.com/evomol-lab/lumos-networks/tree/flask-version)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](#local-python)
+[![Flask](https://img.shields.io/badge/Interface-Flask-263238?style=for-the-badge&logo=flask&logoColor=white)](#whats-new-in-version-20)
+[![License](https://img.shields.io/badge/License-Apache%202.0-2C7A7B?style=for-the-badge)](LICENSE)
+
+[**Quick start**](#-quick-start) · [**What's new**](#-whats-new-in-version-20) · [**Modules**](#-what-each-module-computes) · [**Gallery**](#-interface-gallery) · [**Installation**](#-installation) · [**Scientific methods**](#-scientific-behaviour) · [**Team**](#-development-team)
+
+</div>
+
+---
 
 Lumos Networks is a research application developed by EvoMol-Lab at BioME/UFRN. It runs on your own
 computer as a local web interface (Flask, in the style of [Sauron](https://github.com/evomol-lab/Sauron)
@@ -13,7 +30,9 @@ contains three connected modules:
 
 Everything is explained in the **Documentation** tab of the interface ([DOCUMENTATION.md](DOCUMENTATION.md)).
 
-## Quick start
+<a id="quick-start"></a>
+
+## 🚀 Quick start
 
 With [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/) installed, run
 
@@ -24,7 +43,9 @@ docker run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0
 and open <http://localhost:5070>. The image includes Python, R and limma. To keep your jobs, use the
 command line or choose another port, see [Docker / Podman](#docker--podman).
 
-## What's new in version 2.0
+<a id="whats-new-in-version-20"></a>
+
+## ✨ What's new in version 2.0
 
 - **Local web interface** replacing the Streamlit pages: numbered steps, background jobs with
   progress, log and cancellation, light and dark themes, and the whole session (datasets, analyses,
@@ -41,19 +62,41 @@ command line or choose another port, see [Docker / Podman](#docker--podman).
 - **Interactive HTML report** of any tab, plus a JSON manifest for every analysis, integration and
   enrichment.
 
-**Groups chosen in the sample table**
-![Lumos Networks - samples and groups](screenshots/samples.jpg)
+<a id="interface-gallery"></a>
 
-**Differential expression, with gene symbols or Ensembl IDs**
-![Lumos Networks - DDEA](screenshots/ddea.jpg)
+### 🖥️ Interface gallery
 
-**Integration of analyses**
-![Lumos Networks - integration](screenshots/integrate.jpg)
+<details open>
+<summary><strong>Groups chosen in the sample table</strong></summary>
 
-**PrioriGraph**
-![Lumos Networks - PrioriGraph](screenshots/priorigraph.jpg)
+<img src="screenshots/samples.jpg" alt="Lumos Networks - samples and groups" width="100%" />
 
-## What each module computes
+</details>
+
+<details open>
+<summary><strong>Differential expression, with gene symbols or Ensembl IDs</strong></summary>
+
+<img src="screenshots/ddea.jpg" alt="Lumos Networks - DDEA" width="100%" />
+
+</details>
+
+<details open>
+<summary><strong>Integration of analyses</strong></summary>
+
+<img src="screenshots/integrate.jpg" alt="Lumos Networks - integration" width="100%" />
+
+</details>
+
+<details open>
+<summary><strong>PrioriGraph</strong></summary>
+
+<img src="screenshots/priorigraph.jpg" alt="Lumos Networks - PrioriGraph" width="100%" />
+
+</details>
+
+<a id="what-each-module-computes"></a>
+
+## 🧬 What each module computes
 
 | Module | Implemented methods | Principal outputs |
 |---|---|---|
@@ -65,7 +108,11 @@ The README deliberately uses **candidate regulator**, **association**, and **pri
 network**. The implemented workflow does not establish cohort-specific TF binding, regulatory
 causality, or pathway activation.
 
-## Analytical workflow
+<a id="analytical-workflow"></a>
+
+## 🔄 Analytical workflow
+
+> **DDEA → APP → PrioriGraph** — the three connected stages described below.
 
 ```text
 GEO series or uploaded tables + groups chosen in the sample table
@@ -84,7 +131,9 @@ GEO series or uploaded tables + groups chosen in the sample table
 Every step is a job stored on the server; CSV, JSON and HTML downloads provide durable, reviewable
 hand-offs.
 
-## Scientific behaviour
+<a id="scientific-behaviour"></a>
+
+## 🔬 Scientific behaviour
 
 ### DDEA
 
@@ -137,7 +186,9 @@ hand-offs.
 - Sensitivity analysis perturbs FDR, absolute-effect, RWR-restart and propagation-decay parameters and
   reports configuration coverage, top-k frequency, rank IQR and score variability for every node.
 
-## Installation
+<a id="installation"></a>
+
+## ⚙️ Installation
 
 ### Docker / Podman
 
@@ -203,7 +254,7 @@ To build the image yourself from the repository: `docker build -t lumos-networks
 Python 3.11 or newer.
 
 ```bash
-git clone https://github.com/evomol-lab/lumos-networks.git
+git clone --branch flask-version https://github.com/evomol-lab/lumos-networks.git
 cd lumos-networks
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
@@ -237,7 +288,9 @@ python lumos.py enrich --source run/de --genes-up up.txt --genes-down down.txt -
 Jobs are stored in `lumos_jobs/` (`LUMOS_JOBS_DIR`); `LUMOS_HOST`, `LUMOS_PORT` and
 `LUMOS_JOB_RETENTION_DAYS` change the address and the clean-up.
 
-## Tests
+<a id="tests"></a>
+
+## ✅ Tests
 
 Pure numerical functions live in `lumos_core.py`; the engine (`lumos.py`) is tested on synthetic data
 without network access.
@@ -255,7 +308,9 @@ signatures, RWR mass conservation and network sensitivity; the engine tests cove
 sample matching, DESeq2/limma/Welch runs that recover planted genes, design formulas, the three
 integrations, PrioriGraph construction and the HTML report.
 
-## Project structure
+<a id="project-structure"></a>
+
+## 🗂️ Project structure
 
 ```text
 lumos-networks/
@@ -273,16 +328,20 @@ lumos-networks/
 └── assets/, screenshots/                       # logos and README images
 ```
 
-## Development team
+<a id="development-team"></a>
 
-- Dr. João Paulo M. S. Lima —
-- MSc. Laís de Carvalho Gonçalves —
-- Rodrigo Arruda Orvate — 
+## 👥 Development team
+
+- Dr. João Paulo M. S. Lima
+- MSc. Laís de Carvalho Gonçalves
+- Rodrigo Arruda Orvate
 
 Laboratory of Molecular Evolution and Systems Biology (EvoMol-Lab), BioME,
 Federal University of Rio Grande do Norte (UFRN), Natal, Brazil.
 
-## Core references
+<a id="core-references"></a>
+
+## 📚 Core references
 
 - Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion
   for RNA-seq data with DESeq2. *Genome Biology*. 2014;15:550.
@@ -311,12 +370,19 @@ Federal University of Rio Grande do Norte (UFRN), Natal, Brazil.
 - Hagberg AA, Schult DA, Swart PJ. Exploring network structure, dynamics, and
   function using NetworkX. *Proceedings of SciPy 2008*. 2008:11-15.
 
-## License, release and DOI
+<a id="license-release-and-doi"></a>
+
+## 📄 License, release and DOI
 
 Copyright © 2026 EvoMol-Lab/BioME/UFRN. Lumos Networks is distributed under
 the OSI-approved Apache License 2.0; see `LICENSE` and `NOTICE`.
 
-`CITATION.cff`, `.zenodo.json` and `RELEASE_CHECKLIST.md` prepare a tagged GitHub
-release for Zenodo archival. 
+`CITATION.cff` and `zenodo.json` provide release metadata for a tagged GitHub
+release and Zenodo archival. 
 
 Contact: jpmslima@gmail.com or lais.goncalves.034@ufrn.edu.br
+
+
+---
+
+<div align="center"><sub>Lumos Networks · EvoMol-Lab · BioME/UFRN</sub></div>
