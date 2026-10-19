@@ -6,6 +6,7 @@
 #
 #   podman build --format docker -t docker.io/evomol/lumos-networks:2.0.0 .
 #   podman run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0                  # web interface
+#   docker run --rm --pull always -p 5070:5070 docker.io/evomol/lumos-networks:latest   # newest image at every start
 #   podman run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.0.0 \
 #       python /opt/lumos/lumos.py dataset --geo GSE117769 --outdir data            # command line
 #   podman run --rm docker.io/evomol/lumos-networks:2.0.0 \
@@ -39,7 +40,9 @@ ENV PATH=/opt/venv/bin:$PATH \
     MPLBACKEND=Agg \
     LUMOS_HOST=0.0.0.0 \
     LUMOS_PORT=5070 \
-    LUMOS_JOBS_DIR=/opt/lumos/lumos_jobs
+    LUMOS_JOBS_DIR=/opt/lumos/lumos_jobs \
+    LUMOS_LIBRARY_DIR=/opt/lumos/libraries \
+    LUMOS_UPDATE_CHECK=1
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         r-base-core \
         r-bioc-limma \
@@ -54,14 +57,22 @@ COPY r/ r/
 COPY templates/ templates/
 COPY static/ static/
 COPY tests/ tests/
+# The default Enrichr libraries ship inside the image: the enrichment needs no access to Enrichr (servers
+# whose address it refuses, networks without Internet) and every container uses the same versions.
+RUN LUMOS_CACHE_DIR=/opt/lumos/libraries python -c "import lumos; \
+        [lumos.library_sets(n) for n in lumos.DEFAULT_PATHWAY_LIBRARIES + lumos.DEFAULT_TF_LIBRARIES]" && \
+    ls -l /opt/lumos/libraries
 # Jobs of the web interface; mount a host directory here to keep them. The image runs as root,
 # like the other EvoMol images, so a mounted folder is writable with rootless Podman; with rootful
 # Docker, add --user "$(id -u):$(id -g)" so the files belong to you.
 RUN mkdir -p lumos_jobs && chmod 777 lumos_jobs
 EXPOSE 5070
+# At start-up the release tags on Docker Hub are compared with this version and a newer one is reported in
+# the log and the page (LUMOS_UPDATE_CHECK=0 turns it off). A container cannot replace itself: update with
+# `docker pull`, or start it with `docker run --pull always` to fetch the newest image every time.
 # Python running as PID 1 ignores SIGTERM; SIGINT stops the Flask server cleanly.
 STOPSIGNAL SIGINT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5070/api/capabilities', timeout=3)" || exit 1
+  CMD python -c "import os, urllib.request as u; u.urlopen('http://127.0.0.1:%s/api/capabilities' % os.environ.get('LUMOS_PORT', '5070'), timeout=3)" || exit 1
 # Absolute path: Apptainer images built from this one (docker://...) ignore WORKDIR.
 CMD ["python", "/opt/lumos/LumosGUI.py"]

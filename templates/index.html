@@ -12,7 +12,7 @@
 </div>
 {%- endmacro %}
 {% macro module_tag(name) -%}
-<span class="module-tag"><img src="{{ url_for('static', filename=name|lower ~ '-icon.png') }}" alt="">{{ name }}</span>
+<span class="module-tag"><img src="static/{{ name|lower }}-icon.png" alt="">{{ name }}</span>
 {%- endmacro %}
 <!DOCTYPE html>
 <html lang="en">
@@ -21,15 +21,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumos Networks</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='lumos-icon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <link rel="icon" type="image/png" href="static/lumos-icon.png">
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="static/vendor/inter/inter.css">
+    <!-- Served locally (static/vendor) so figures, networks and the documentation also work on
+         servers and networks without access to public CDNs. -->
+    <link rel="stylesheet" href="static/vendor/katex/katex.min.css">
+    <script src="static/vendor/plotly.min.js" charset="utf-8"></script>
+    <script src="static/vendor/vis-network-9.1.9.min.js"></script>
+    <script src="static/vendor/marked-4.3.0.min.js"></script>
+    <script defer src="static/vendor/katex/katex.min.js"></script>
+    <script defer src="static/vendor/katex/contrib/auto-render.min.js"></script>
 </head>
 
 <body>
@@ -60,7 +62,7 @@
     <div class="container glass-panel">
         <header>
             <div class="logo-container">
-                <img src="{{ url_for('static', filename='lumos-logo.jpg') }}" alt="Lumos Networks logo">
+                <img src="static/lumos-logo.jpg" alt="Lumos Networks logo">
             </div>
             <h1 class="app-title">Lumos Networks</h1>
             <p class="subtitle">From transcriptomes to regulatory networks: differential expression (DDEA), pathways (APP) and PrioriGraph (PG)</p>
@@ -71,6 +73,31 @@
         </header>
 
         <main id="calculator-view">
+            <div class="callout hidden" id="update-banner" role="status"></div>
+            <details class="explain" id="about" style="margin-bottom: 18px;">
+                <summary>About Lumos Networks and a quick guide to the concepts</summary>
+                <p><strong>Lumos Networks</strong> connects differential-expression analysis, functional
+                    over-representation analysis and transparent prior-knowledge networks. Results generate hypotheses and
+                    keep the statistical and database provenance needed for review.</p>
+                <ul>
+                    <li><strong>DDEA</strong> estimates differential-expression effects and their uncertainty: PyDESeq2 for
+                        raw counts, limma (or the exploratory Welch test) for continuous values, Benjamini–Hochberg FDR,
+                        volcano/MA/PCA plots, complete tables and a machine-readable manifest.</li>
+                    <li><strong>APP</strong> places the selected genes in context with versioned knowledge bases: ORA on
+                        KEGG and Gene Ontology (Enrichr), STRING associations and candidate regulators (JASPAR, TRRUST).</li>
+                    <li><strong>PG</strong> integrates the evidence into an inspectable network of enriched terms, genes and
+                        candidate regulators, with topology, propagation, sensitivity and exportable provenance.</li>
+                </ul>
+                <p><strong>FDR (adjusted p-value):</strong> the p-value corrected for the many tests made at once.
+                    <strong>Gene hub:</strong> a gene with many connections in a network.
+                    <strong>Candidate regulator:</strong> a transcription factor whose known targets are enriched among the
+                    selected genes; experimental validation is still required.
+                    <strong>ORA:</strong> over-representation analysis, which tests whether a gene list holds more members
+                    of a pathway than expected from an explicit reference universe.</p>
+                <p class="hint">Development: Dr. João Paulo M. S. Lima, MSc. Laís de Carvalho Gonçalves and Rodrigo Arruda
+                    Orvate · EvoMol-Lab, BioME/UFRN. The <em>Documentation</em> tab explains every step and method.</p>
+            </details>
+
             <!-- 1. Dataset -->
             <section class="form-section" id="sec-dataset">
                 <h2><span class="step-badge">1</span>Dataset {{ module_tag('DDEA') }}</h2>
@@ -78,6 +105,7 @@
                 <div class="segmented" role="radiogroup" aria-label="Data source">
                     <label><input type="radio" name="input_mode" value="geo" checked>GEO series</label>
                     <label><input type="radio" name="input_mode" value="upload">Upload tables</label>
+                    <label><input type="radio" name="input_mode" value="results">Result tables (APP)</label>
                 </div>
 
                 <div id="geo-zone">
@@ -139,6 +167,18 @@
                                 <option value="microarray">Microarray</option>
                             </select>
                         </div>
+                    </div>
+                </div>
+
+                <div id="results-zone" class="hidden">
+                    <div class="field">
+                        <label for="result-files">Differential-expression result tables</label>
+                        <input type="file" id="result-files" class="input" multiple accept=".csv,.tsv,.txt,.tab,.gz">
+                        <span class="hint">Results computed elsewhere (DESeq2, limma, edgeR…) or exported by Lumos, to go
+                            straight to the pathway (APP) and PrioriGraph (PG) analyses. Each table needs a gene column
+                            (Symbol, Gene, Gene_ID…), the log2 fold change (Log2FC, log2FoldChange, logFC) and the
+                            adjusted p-value (FDR, padj, adj.P.Val); tables of several analyses (Log2FC_&lt;name&gt; and
+                            FDR_&lt;name&gt; columns) give one gene source per analysis.</span>
                     </div>
                 </div>
 
@@ -310,6 +350,7 @@
                     <div class="field" style="flex: 1 1 320px; max-width: 560px;">
                         <label for="analysis-select" class="hint">Analysis shown</label>
                         <select id="analysis-select" class="input"></select>
+                        <button type="button" class="link-btn" id="remove-analysis-btn" style="align-self: flex-start;">Remove this analysis</button>
                     </div>
                     <div class="results-actions">
                         <div class="label-switch" id="label-switch">
@@ -326,12 +367,12 @@
                 <h2 id="results-title" class="section-title" style="margin-top: 0;">Results</h2>
                 <div class="tabs" role="tablist">
                     <button type="button" class="tab-btn active" data-tab="ddea" role="tab">
-                        <img src="{{ url_for('static', filename='ddea-icon.png') }}" alt="">DDEA</button>
+                        <img src="static/ddea-icon.png" alt="">DDEA</button>
                     <button type="button" class="tab-btn" data-tab="int" role="tab">Integrate</button>
                     <button type="button" class="tab-btn" data-tab="app" role="tab">
-                        <img src="{{ url_for('static', filename='app-icon.png') }}" alt="">APP · Pathways</button>
+                        <img src="static/app-icon.png" alt="">APP · Pathways</button>
                     <button type="button" class="tab-btn" data-tab="pg" role="tab" id="tab-pg-btn" disabled>
-                        <img src="{{ url_for('static', filename='pg-icon.png') }}" alt="">PG · PrioriGraph</button>
+                        <img src="static/pg-icon.png" alt="">PG · PrioriGraph</button>
                     <button type="button" class="tab-btn" data-tab="files" role="tab">Files</button>
                 </div>
 
@@ -356,7 +397,7 @@
                         </div>
                     </div>
                     <div class="tiles" id="de-tiles"></div>
-                    <div style="margin: 12px 0"><button type="button" class="btn btn-primary" id="de-to-app">Continue to APP with this analysis →</button></div>
+                    <div style="margin: 12px 0"><button type="button" class="secondary-btn" id="de-to-app">Continue to APP with this analysis →</button></div>
                     <ul class="notes" id="de-notes"></ul>
                     <div class="chart-grid">
                         <div class="chart-card full">
@@ -501,13 +542,19 @@
                                 <div class="plot" id="chart-i2"></div>
                             </div>
                             <div class="chart-card full">
-                                <h3>Expression of the top meta-analysis genes</h3>
-                                <p class="chart-sub">Row z-scores within each study, samples grouped by study and condition.</p>
+                                <div class="card-head">
+                                    <div><h3>Expression of the top meta-analysis genes</h3>
+                                        <p class="chart-sub">Row z-scores within each study, samples grouped by study and condition.</p></div>
+                                    <div class="label-switch">
+                                        <label class="hint" style="display: inline-flex; gap: 6px; align-items: center; cursor: pointer;"><input type="checkbox" id="meta-cluster-rows"> cluster genes</label>
+                                        <label class="hint" style="display: inline-flex; gap: 6px; align-items: center; cursor: pointer;"><input type="checkbox" id="meta-cluster-cols"> cluster samples</label>
+                                    </div>
+                                </div>
                                 <div class="plot" id="chart-meta-heat"></div>
                             </div>
                         </div>
                         <div class="table-toolbar">
-                            <input type="search" id="int-filter" class="input" placeholder="Filter genes…" aria-label="Filter genes">
+                            <input type="search" id="int-filter" class="input" placeholder="Filter genes (or paste a gene list)…" aria-label="Filter genes">
                             <select id="int-pattern" class="input" aria-label="Pattern" style="flex: 0 1 260px;"></select>
                             <span class="spacer"></span>
                             <span id="int-files" style="display: contents;"></span>
@@ -521,8 +568,9 @@
                     <div class="callout">
                         The <strong>Arithmancy Pathway Profiler</strong> runs over-representation analysis (ORA) against an
                         <strong>explicit background</strong>: by default every gene tested in the source. Up- and
-                        down-regulated genes are queried separately by default. Speedrichr is used first; if it is
-                        unavailable, Lumos applies the same one-sided hypergeometric test to the Enrichr libraries locally.
+                        down-regulated genes are queried separately by default. Lumos computes the one-sided hypergeometric
+                        test on the Enrichr libraries itself (universe: background genes annotated in the library), so the
+                        result is the same on any computer or server.
                         Direction labels describe the input lists; ORA does not show that a pathway is activated.
                     </div>
                     <div class="field-grid">
@@ -541,7 +589,7 @@
                     </div>
                     <h3 class="section-title">Genes</h3>
                     <div class="table-toolbar">
-                        <input type="search" id="app-filter" class="input" placeholder="Filter genes…" aria-label="Filter genes">
+                        <input type="search" id="app-filter" class="input" placeholder="Filter genes (or paste a gene list)…" aria-label="Filter genes">
                         <button type="button" class="link-btn" data-pick="all">Tick all</button>
                         <button type="button" class="link-btn" data-pick="up">Only up</button>
                         <button type="button" class="link-btn" data-pick="down">Only down</button>
@@ -581,6 +629,12 @@
                             <div class="library-list" id="tf-libs"></div>
                             <span class="hint">TRRUST: curated TF → target interactions. JASPAR: binding motifs.
                                 ChEA / ENCODE: ChIP-seq targets. Each is tested on its own and kept as evidence source.</span>
+                            <label for="reg-files" class="field-label" style="margin-top: 10px;">Your regulator tables (optional)</label>
+                            <input type="file" id="reg-files" class="input" multiple accept=".csv,.tsv,.txt,.tab,.gz">
+                            <span class="hint">Regulator → target tables (e.g. TRRUST or JASPAR exports): a TF column (TF,
+                                TF_Symbol, TF_Name) and a target column (Target, Target_Gene, Genes; several targets
+                                separated by ";"). They are used together with the libraries above (untick these to use
+                                only your tables); without an adjusted p-value column the interactions are used as given.</span>
                         </div>
                     </div>
                     <label class="toggle-switch compact" style="margin-top: 12px;">
@@ -600,6 +654,14 @@
                     <div id="app-results" class="hidden" style="margin-top: 28px;">
                         <div class="tiles" id="app-tiles"></div>
                         <ul class="notes" id="app-notes"></ul>
+                        <div class="field-grid">
+                            <div class="field">
+                                <label for="app-chart-fdr">FDR for the charts</label>
+                                <input type="number" id="app-chart-fdr" class="input" min="0.0001" max="1" step="0.01" value="0.05">
+                                <span class="hint">Terms and regulators with a larger adjusted p-value are left out of the charts
+                                    (not of the tables and files).</span>
+                            </div>
+                        </div>
                         <div class="chart-grid" id="lib-charts"></div>
                         <div class="chart-grid">
                             <div class="chart-card full" id="tf-card">
@@ -608,6 +670,9 @@
                                     <a class="link-btn" id="tf-csv" href="#">.csv</a>
                                 </div>
                                 <div class="plot" id="chart-tf" style="height: 460px;"></div>
+                                <details class="explain" style="margin: 8px 0 10px;"><summary>Table (every regulator term)</summary>
+                                    <div class="table-wrap scroll" style="margin-top: 8px; max-height: 360px;"><table class="data-table wrap" id="tf-table"></table></div>
+                                </details>
                             </div>
                         </div>
 
@@ -635,6 +700,9 @@
                             </div>
                             <div class="field">
                                 <button type="button" class="secondary-btn compact" id="string-btn">Build network</button>
+                            </div>
+                            <div class="field">
+                                <button type="button" class="link-btn hidden" id="string-csv">Associations (.csv)</button>
                             </div>
                         </div>
                         <div class="network"><div class="network-canvas" id="string-net"></div><div class="network-msg" id="string-msg">Build the network to see the associations among the ticked genes.</div></div>
@@ -714,6 +782,7 @@
                         </div>
                         <span class="spacer"></span>
                         <button type="button" class="link-btn" id="pg-export">Download this table (.csv)</button>
+                        <a class="link-btn hidden" id="pg-sens-all" href="#">All configurations (.csv)</a>
                         <button type="button" class="link-btn" id="pg-edges">Edges with provenance (.csv)</button>
                     </div>
                     <p class="hint" id="pg-view-desc" style="margin-bottom: 10px;"></p>
@@ -756,12 +825,12 @@
 
     <footer class="app-footer">
         <a href="http://bioinfo.imd.ufrn.br" target="_blank" rel="noopener noreferrer">
-            <img src="{{ url_for('static', filename='EvoMol-logo.png') }}" alt="EvoMol Lab logo" class="footer-logo">
+            <img src="static/EvoMol-logo.png" alt="EvoMol Lab logo" class="footer-logo">
         </a>
         <p>developed by the EvoMol-Lab Team, BioME/UFRN · powered by PyDESeq2, limma, Enrichr, STRING and NetworkX</p>
     </footer>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="static/script.js"></script>
 </body>
 
 </html>

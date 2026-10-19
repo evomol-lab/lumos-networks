@@ -13,7 +13,7 @@
 [![Flask](https://img.shields.io/badge/Interface-Flask-263238?style=for-the-badge&logo=flask&logoColor=white)](#whats-new-in-version-20)
 [![License](https://img.shields.io/badge/License-Apache%202.0-2C7A7B?style=for-the-badge)](LICENSE)
 
-[**Quick start**](#-quick-start) · [**What's new**](#-whats-new-in-version-20) · [**Modules**](#-what-each-module-computes) · [**Gallery**](#-interface-gallery) · [**Installation**](#-installation) · [**Scientific methods**](#-scientific-behaviour) · [**Team**](#-development-team)
+[**⚠️ Important changes**](#important-changes) · [**Quick start**](#-quick-start) · [**What's new**](#-whats-new-in-version-20) · [**Modules**](#-what-each-module-computes) · [**Gallery**](#-interface-gallery) · [**Installation**](#-installation) · [**Scientific methods**](#-scientific-behaviour) · [**Team**](#-development-team)
 
 </div>
 
@@ -29,6 +29,51 @@ contains three connected modules:
 3. **PG — PrioriGraph**
 
 Everything is explained in the **Documentation** tab of the interface ([DOCUMENTATION.md](DOCUMENTATION.md)).
+
+<a id="important-changes"></a>
+
+## ⚠️ Important changes since 2.0.0
+
+> [!IMPORTANT]
+> **The enrichment statistics of APP changed (FDR).** Version 2.0.0 sent the gene lists to Enrichr's
+> Speedrichr service and, when Enrichr could not be reached (it refuses many server addresses), used a
+> local test with a *different* multiple-testing correction, so the same data could give different
+> results on a laptop and on a server. APP now always computes the one-sided hypergeometric test
+> itself, on the Enrichr libraries, with the conventions of
+> [clusterProfiler](https://doi.org/10.1089/omi.2011.0118): the universe is the background restricted
+> to the genes annotated in the library, and Benjamini–Hochberg runs within each library over the
+> tested terms (those with at least one query gene). **The results are the same on any computer or
+> server.**
+
+How the new results compare with Speedrichr (4 gene sources, 4 default libraries, 11,861 term tests):
+
+| | Agreement |
+|---|---|
+| Same significant / not significant call (FDR < 0.05) | **99.1%** |
+| Ranking of the terms (Spearman correlation of p-values) | **0.999** |
+| Top-10 terms shared | **93.6%** |
+| New significant terms that were already significant | **98%** (371 of 378) |
+| Former significant terms still significant | 78% (371 of 475): GO 86%, KEGG 79%, JASPAR 100%, **TRRUST 6%** |
+
+The new test is slightly stricter. The largest difference is **TRRUST**: it annotates few genes, and
+Speedrichr counted the background genes absent from the library in the universe, which inflated its
+significance. Expect fewer TRRUST regulators; PrioriGraph may relax the regulator FDR more often and
+says so on screen.
+
+Other changes worth knowing:
+
+- **Gene lists are no longer cut**: APP used to keep only the first 3,000 genes of each list without
+  warning; lists of up to 20,000 genes are used whole, larger ones are refused with a message.
+- **New inputs**: differential-expression result tables computed elsewhere (DESeq2, limma, edgeR, Lumos
+  exports) go straight to APP and PrioriGraph; your own regulator → target tables can be added to the
+  regulator libraries (without an adjusted p-value their interactions are used as given).
+- **Charts**: APP charts hide terms and regulators above the *FDR for the charts* (0.05 by default; the
+  tables and files keep every term); PNG exports are drawn on white whatever the theme; the
+  meta-analysis heatmap can be clustered; the sensitivity analysis exports every configuration.
+- **Servers and closed networks**: the default Enrichr libraries ship inside the Docker image; Plotly,
+  vis-network, marked, KaTeX and the Inter font are served by Lumos itself; the page works under a
+  reverse-proxy sub-path; the image uses the waitress server, reports a newer release on Docker Hub at
+  start-up, and its health check follows `LUMOS_PORT`.
 
 <a id="quick-start"></a>
 
@@ -101,7 +146,7 @@ command line or choose another port, see [Docker / Podman](#docker--podman).
 | Module | Implemented methods | Principal outputs |
 |---|---|---|
 | DDEA | PyDESeq2 Wald tests for raw integer RNA-seq counts; limma empirical-Bayes models for continuous expression; full-rank batch, covariate and paired-subject designs; alignment of contrasts; random-effects meta-analysis; multi-tissue alignment | Complete DE tables, design/contrast provenance, diagnostic figures, forest plots, cross-dataset alignment, JSON manifest, interactive HTML report |
-| APP | Explicit-background ORA through Speedrichr (local hypergeometric fallback), separated by expression direction by default; STRING v12 networks; TRRUST/JASPAR target-set enrichment | KEGG/GO tables with query/universe sizes and engine, STRING associations, candidate-regulator tables with provenance, JSON manifest, interactive HTML report |
+| APP | Explicit-background ORA (hypergeometric test on the Enrichr libraries, computed locally), separated by expression direction by default; STRING v12 networks; TRRUST/JASPAR target-set enrichment | KEGG/GO tables with query/universe sizes and engine, STRING associations, candidate-regulator tables with provenance, JSON manifest, interactive HTML report |
 | PrioriGraph | Enriched-term → gene and candidate TF → target integration; HITS, PageRank, betweenness; personalized RWR, signed linear propagation and parameter-grid sensitivity | Interactive network, edge provenance, structural rankings, propagation and stability tables, interactive HTML report |
 
 The README deliberately uses **candidate regulator**, **association**, and **prior-knowledge
@@ -196,7 +241,17 @@ The recommended way to run Lumos Networks is the image
 [`evomol/lumos-networks`](https://hub.docker.com/r/evomol/lumos-networks) on Docker Hub. It contains
 Python, R and limma, so nothing else needs to be installed. The commands use `docker`; with
 [Podman](https://podman.io/), write `podman` instead. Lumos needs an internet connection for GEO,
-Enrichr, STRING and MyGene.info.
+STRING and MyGene.info; the default Enrichr libraries (KEGG 2021, GO Biological Process 2023, TRRUST
+2019, JASPAR PWM 2025) are inside the image, other libraries are downloaded when chosen.
+
+**Updates.** At start-up the container compares its version with the releases on Docker Hub and, when
+there is a newer one, says so in its log and at the top of the page (set `-e LUMOS_UPDATE_CHECK=0` to
+turn this off). A container cannot replace itself; to always start the newest image, add
+`--pull always`:
+
+```bash
+docker run --rm --pull always -p 5070:5070 docker.io/evomol/lumos-networks:latest
+```
 
 **1. Download the image** (once, and again to update):
 

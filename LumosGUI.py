@@ -40,6 +40,7 @@ LIBRARY = re.compile(r'^[A-Za-z0-9_.\-]{1,80}$')
 GENE = re.compile(r'[^A-Za-z0-9_.\-:@/]')
 PROCS = {}   # job id -> subprocess.Popen
 _LIBRARIES = {'time': 0, 'names': None}
+UPDATE = {}   # newer image on Docker Hub, found at start-up (LUMOS_UPDATE_CHECK=1, set in the image)
 _LOCK = threading.Lock()
 
 
@@ -116,8 +117,10 @@ def choice(form, key, allowed, default):
 
 
 def gene_list(text, limit=20000):
-    genes = [GENE.sub('', g)[:40] for g in re.split(r'[\s,;]+', text or '') if g][:limit]
-    return [g for g in genes if g]
+    genes = [g for g in (GENE.sub('', g)[:40] for g in re.split(r'[\s,;]+', text or '') if g) if g]
+    if len(genes) > limit:     # refused rather than cut silently
+        raise ValueError(f'At most {limit} genes per list ({len(genes)} were given).')
+    return genes
 
 
 def write_lines(path, items):
@@ -216,9 +219,16 @@ def integrate_arguments(form, inputs):
     return args, {'analyses': ids, 'mode': mode}
 
 
+def import_arguments(form, inputs):
+    paths = [save_upload(f, inputs) for f in request.files.getlist('tables') if f.filename][:10]
+    if not paths:
+        raise ValueError('Upload at least one result table (.csv, .tsv or .txt).')
+    return ['--tables', *paths], {'uploads': [os.path.basename(p) for p in paths]}
+
+
 def enrich_arguments(form, inputs):
-    source = finished_job(form.get('source'), ('de', 'integrate'))
-    up, down = gene_list(form.get('genes_up'), 3000), gene_list(form.get('genes_down'), 3000)
+    source = finished_job(form.get('source'), ('de', 'integrate', 'results'))
+    up, down = gene_list(form.get('genes_up')), gene_list(form.get('genes_down'))
     if len(set(up) | set(down)) < 3:
         raise ValueError('Select at least three genes.')
     libs = [l for l in form.get('libraries', '').split(',') if LIBRARY.match(l)][:8]
@@ -240,6 +250,9 @@ def enrich_arguments(form, inputs):
         args += ['--background', write_lines(os.path.join(inputs, 'background.txt'), background)]
     if form.get('keep_nonhuman') == 'true':
         args.append('--keep-nonhuman')
+    tables = [save_upload(f, inputs) for f in request.files.getlist('regulator_tables') if f.filename][:10]
+    if tables:
+        args += ['--regulator-tables', *tables]
     return args, {'source': form.get('source'), 'focus': focus, 'n_genes': len(set(up) | set(down))}
 
 
@@ -265,7 +278,8 @@ def capabilities():
                     'deseq2': importlib.util.find_spec('pydeseq2') is not None,
                     'limma': limma, 'limma_version': limma_version,
                     'pathway_libraries': list(lumos.DEFAULT_PATHWAY_LIBRARIES),
-                    'tf_libraries_default': list(lumos.DEFAULT_TF_LIBRARIES), 'tf_libraries': list(lumos.TF_LIBRARIES)})
+                    'tf_libraries_default': list(lumos.DEFAULT_TF_LIBRARIES), 'tf_libraries': list(lumos.TF_LIBRARIES),
+                    'update': UPDATE or None})
 
 
 @app.route('/api/enrichr/libraries')
@@ -291,7 +305,7 @@ def submit():
     form = request.form
     action = form.get('action')
     builders = {'dataset': dataset_arguments, 'de': de_arguments, 'integrate': integrate_arguments,
-                'enrich': enrich_arguments}
+                'enrich': enrich_arguments, 'import': import_arguments}
     if action not in builders:
         return jsonify({'error': 'Unknown action.'}), 400
     job_id = uuid.uuid4().hex[:12]
@@ -310,7 +324,7 @@ def submit():
     else:
         cmd = [sys.executable, os.path.join(APP_ROOT, 'lumos.py'), action] + args + ['--outdir', path]
     log = open(os.path.join(path, 'run.log'), 'w')
-    env = dict(os.environ, PYTHONUNBUFFERED='1', MPLBACKEND='Agg')
+    env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONIOENCODING='utf-8', MPLBACKEND='Agg')
     PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=path, env=env)
     log.close()
     return jsonify({'job': job_id})
@@ -334,7 +348,7 @@ def job_status(job_id):
     lines, prog, message = [], 0.0, ''
     log_path = os.path.join(path, 'run.log')
     if os.path.exists(log_path):
-        with open(log_path, errors='replace') as fh:
+        with open(log_path, encoding='utf-8', errors='replace') as fh:
             for line in fh:
                 if line.startswith('@@progress'):
                     parts = line.split(maxsplit=2)
@@ -455,6 +469,33 @@ def report():
     return Response(html, mimetype='text/html', headers={'Content-Disposition': f'attachment; filename="{name}"'})
 
 
+def release(tag):
+    m = re.fullmatch(r'(\d+)\.(\d+)\.(\d+)', tag or '')
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def check_for_update():
+    """Compare this version with the release tags of the image on Docker Hub; a newer one is logged and
+    announced in the page (the container cannot replace itself: `docker pull`, or `docker run --pull always`)."""
+    import lumos
+    repo = os.environ.get('LUMOS_UPDATE_REPO', 'evomol/lumos-networks')
+    try:
+        r = lumos.session().get(f'https://hub.docker.com/v2/repositories/{repo}/tags', params={'page_size': 100},
+                                timeout=10)
+        r.raise_for_status()
+        tags = [t['name'] for t in r.json().get('results', [])]
+    except Exception as exc:
+        print(f'Update check: Docker Hub could not be reached ({type(exc).__name__}).', flush=True)
+        return
+    newest = max((t for t in tags if release(t)), key=release, default=None)
+    if newest and release(newest) > (release(lumos.__version__) or (0, 0, 0)):
+        UPDATE.update(version=newest, current=lumos.__version__, command=f'docker pull docker.io/{repo}:{newest}')
+        print(f'Update check: Lumos Networks {newest} is available on Docker Hub (this image is '
+              f'{lumos.__version__}). Update with: {UPDATE["command"]}', flush=True)
+    else:
+        print(f'Update check: {lumos.__version__} is the newest release on Docker Hub ({repo}).', flush=True)
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == '--run-lumos':
         import lumos
@@ -464,13 +505,25 @@ def main():
     port = int(os.environ.get('LUMOS_PORT', '5070'))
     url = f'http://{"127.0.0.1" if host == "0.0.0.0" else host}:{port}/'
     print(f'Lumos Networks: open {url} in your browser (Ctrl+C to stop).')
+    if host in ('0.0.0.0', '::'):
+        print(f'Listening on every network interface: from other computers, open http://<address of this '
+              f'machine or server>:{port}/ (with Docker, the host port given to -p).')
     print(f'Jobs are stored in {JOBS_DIR}')
+    if os.environ.get('LUMOS_UPDATE_CHECK') == '1':
+        threading.Thread(target=check_for_update, daemon=True).start()
     if FROZEN or '--browser' in sys.argv:
         import webbrowser
         threading.Timer(1.25, lambda: webbrowser.open_new(url)).start()
-    # Debug mode stays off: Werkzeug's interactive debugger would let anyone who
-    # reaches the port run code.
-    app.run(host=host, port=port, debug=False, threaded=True)
+    try:
+        from waitress import serve
+    except ImportError:
+        # Development server; debug mode stays off: Werkzeug's interactive debugger would let
+        # anyone who reaches the port run code.
+        app.run(host=host, port=port, debug=False, threaded=True)
+        return
+    # Production server, one process with several threads: every request sees the running jobs (PROCS).
+    serve(app, host=host, port=port, threads=int(os.environ.get('LUMOS_THREADS', '8')),
+          max_request_body_size=app.config['MAX_CONTENT_LENGTH'], ident='Lumos Networks')
 
 
 if __name__ == '__main__':

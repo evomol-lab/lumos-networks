@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const state = {
         caps: null,
         files: [],
-        datasets: new Map(), analyses: new Map(), integrations: new Map(),
+        datasets: new Map(), analyses: new Map(), integrations: new Map(), imports: new Map(),
         dsJob: null, dataset: null,            // dataset shown in steps 1-3
         groups: [],                            // [{name, color, ids: Set}]
         deJob: null, de: null, G: null,        // analysis shown in the results
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('documentation-view').style.display = docs ? 'block' : 'none';
         document.querySelector('.container').classList.toggle('expanded', docs || !!state.dataset);
         if (docs && !docsLoaded) {
-            fetch('/documentation').then((r) => {
+            fetch('documentation').then((r) => {
                 if (!r.ok) throw new Error('Documentation file not found on the server.');
                 return r.text();
             }).then((md) => {
@@ -112,6 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
     $('nav-documentation').addEventListener('click', () => showView('documentation'));
 
     // ------------------------------------------------------------------ errors and URL
+    // A web server or proxy in front of Lumos answers some errors with an HTML page instead of JSON.
+    async function jsonOf(r) {
+        try {
+            return await r.json();
+        } catch (e) {
+            if (r.status === 413) return { error: 'The upload is larger than the server accepts (HTTP 413): raise the upload limit of the web server or proxy in front of Lumos (nginx: client_max_body_size).' };
+            const proxy = [502, 503, 504].includes(r.status) ? ': a proxy in front of Lumos may have stopped waiting (nginx: proxy_read_timeout)' : '';
+            return { error: `The server answered HTTP ${r.status} ${r.statusText}${proxy}.` };
+        }
+    }
+
     function showError(msg, el = $('error-message')) {
         el.textContent = msg || '';
         el.style.display = msg ? 'block' : 'none';
@@ -122,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.datasets.size) p.set('ds', [...state.datasets.keys()].join(','));
         if (state.analyses.size) p.set('de', [...state.analyses.keys()].join(','));
         if (state.integrations.size) p.set('int', [...state.integrations.keys()].join(','));
+        if (state.imports.size) p.set('res', [...state.imports.keys()].join(','));
         if (state.appJob) p.set('app', state.appJob);
         if (state.dsJob) p.set('d', state.dsJob);
         if (state.deJob) p.set('a', state.deJob);
@@ -148,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async start(fd, text) {
             showError('', this.errorEl);
-            const r = await fetch('/api/jobs', { method: 'POST', body: fd });
-            const d = await r.json();
+            const r = await fetch('api/jobs', { method: 'POST', body: fd });
+            const d = await jsonOf(r);
             if (!r.ok) throw new Error(d.error || 'The job could not be started.');
             this.follow(d.job, text);
             return d.job;
@@ -169,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async poll() {
             let d;
             try {
-                const r = await fetch(`/api/jobs/${this.id}`);
+                const r = await fetch(`api/jobs/${this.id}`);
                 d = await r.json();
             } catch (e) {
                 this.timer = setTimeout(() => this.poll(), 2000);
@@ -203,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async cancel() {
             if (!this.id || !this.running()) return;
-            await fetch(`/api/jobs/${this.id}/cancel`, { method: 'POST' });
+            await fetch(`api/jobs/${this.id}/cancel`, { method: 'POST' });
         }
     }
 
@@ -245,7 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
         view() {
             let rows = this.rows;
             const terms = this.filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
-            if (terms.length) rows = rows.filter((r) => { const t = this.opts.text(r); return terms.every((w) => t.includes(w)); });
+            if (terms.length) {
+                const any = this.opts.anyTerm && terms.length > 1;      // a pasted gene list: any of its genes
+                rows = rows.filter((r) => { const t = this.opts.text(r); return any ? terms.some((w) => t.includes(w)) : terms.every((w) => t.includes(w)); });
+            }
             if (this.opts.extraFilter) rows = rows.filter(this.opts.extraFilter);
             const col = this.sortKey && this.columns().find((c) => c.key === this.sortKey);
             if (col) {
@@ -387,9 +402,22 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadCsv(name, cols.map((c) => c.label), rows);
     }
 
+    ['highlight', 'int-filter', 'app-filter'].forEach((id) => $(id).addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!/[\n\r,;\t]/.test(text)) return;
+        e.preventDefault();
+        $(id).value = text.split(/[\s,;]+/).filter(Boolean).join(' ');
+        $(id).dispatchEvent(new Event('input'));
+    }));
+
     // ------------------------------------------------------------------ capabilities
-    fetch('/api/capabilities').then((r) => r.json()).then((caps) => {
+    fetch('api/capabilities').then((r) => r.json()).then((caps) => {
         state.caps = caps;
+        if (caps.update) {
+            $('update-banner').innerHTML = `A newer Lumos Networks image is available: <strong>${esc(caps.update.version)}</strong> ` +
+                `(this one is ${esc(caps.update.current)}). Update with <code>${esc(caps.update.command)}</code> and start the container again.`;
+            $('update-banner').classList.remove('hidden');
+        }
         if (!caps.deseq2) {
             const opt = document.querySelector('#engine option[value="deseq2"]');
             opt.disabled = true;
@@ -414,9 +442,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputMode = () => document.querySelector('input[name="input_mode"]:checked').value;
 
     document.querySelectorAll('input[name="input_mode"]').forEach((el) => el.addEventListener('change', () => {
-        const geo = inputMode() === 'geo';
-        $('geo-zone').classList.toggle('hidden', !geo);
-        $('upload-zone').classList.toggle('hidden', geo);
+        const mode = inputMode();
+        $('geo-zone').classList.toggle('hidden', mode !== 'geo');
+        $('upload-zone').classList.toggle('hidden', mode !== 'upload');
+        $('results-zone').classList.toggle('hidden', mode !== 'results');
+        $('load-btn').querySelector('span').textContent = mode === 'results' ? 'Import result tables' : 'Load dataset';
     }));
 
     function setFiles(list) {
@@ -447,11 +477,25 @@ document.addEventListener('DOMContentLoaded', () => {
         activateDataset(id, fresh);
     });
 
+    const importJob = new Job('job-dataset', $('load-btn'), $('error-message'), (id, s, fresh) => addImport(id, s, fresh));
+
     $('load-btn').addEventListener('click', async () => {
         showError('');
         const fd = new FormData();
-        fd.append('action', 'dataset');
         const mode = inputMode();
+        if (mode === 'results') {
+            const files = [...$('result-files').files];
+            if (!files.length) return showError('Choose the result table(s) first.');
+            fd.append('action', 'import');
+            files.forEach((f) => fd.append('tables', f));
+            try {
+                await importJob.start(fd, 'Reading the result tables…');
+            } catch (e) {
+                showError(e.message);
+            }
+            return;
+        }
+        fd.append('action', 'dataset');
         fd.append('input_mode', mode);
         let text;
         if (mode === 'geo') {
@@ -986,6 +1030,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 `<option value="${id}"${id === state.deJob ? ' selected' : ''}>${esc(s.label)} — ${s.counts.up} up, ${s.counts.down} down</option>`).join('')}</optgroup>`).join('');
     }
     $('analysis-select').addEventListener('change', () => activateAnalysis($('analysis-select').value, false));
+    $('remove-analysis-btn').addEventListener('click', () => {
+        if (!state.deJob || !window.confirm('Remove this analysis from the session? Its files stay on the server.')) return;
+        removeAnalysis(state.deJob);
+        renderDatasetBar();
+        updateUrl();
+    });
 
     function addAnalysis(id, s, fresh) {
         state.analyses.set(id, s);
@@ -1004,9 +1054,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.deJob === id) {
             const next = [...state.analyses.keys()].pop();
             if (next) activateAnalysis(next, false);
-            else { state.deJob = null; state.de = null; $('results').style.display = 'none'; }
+            else {
+                state.deJob = null;
+                state.de = null;
+                if (state.imports.size) showResults(); else $('results').style.display = 'none';
+            }
         }
         renderAppSources();
+    }
+
+    // Results without an analysis (only imported tables) open on the APP: DDEA and Integrate need one.
+    function showResults() {
+        const de = !!state.de;
+        $('results').style.display = 'block';
+        document.querySelector('.container').classList.add('expanded');
+        document.querySelectorAll('.tab-btn[data-tab="ddea"], .tab-btn[data-tab="int"]').forEach((b) => { b.disabled = !de; });
+        $('analysis-select').closest('.field').classList.toggle('hidden', !de);
+        $('zip-btn').classList.toggle('hidden', !de);
+        if (!de) {
+            $('label-switch').classList.add('hidden');
+            $('results-title').textContent = 'Imported result tables';
+            if (['ddea', 'int'].includes(activeTab())) switchTab('app');
+        }
+    }
+
+    function addImport(id, s, fresh) {
+        state.imports.set(id, s);
+        showResults();
+        renderAppSources();
+        if (fresh) {
+            $('app-source').value = `res|${id}|profile:${s.profiles[0].id}`;
+            buildAppSource(true);
+            switchTab('app');
+            $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        updateUrl();
     }
 
     function activateAnalysis(id, fresh) {
@@ -1029,10 +1111,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector(`input[name="labels"][value="${state.labels}"]`).checked = true;
         const cmp = s.comparison;
         $('results-title').textContent = `${s.name} · ${s.label}` + (s.label !== `${cmp.test} vs ${cmp.reference}` ? ` (${cmp.test} vs ${cmp.reference})` : '');
-        $('zip-btn').href = `/api/jobs/${id}/files/${encodeURIComponent(s.files.zip)}?download=1`;
-        $('manifest-btn').href = `/api/jobs/${id}/files/manifest.json?download=1`;
-        $('results').style.display = 'block';
-        document.querySelector('.container').classList.add('expanded');
+        $('zip-btn').href = `api/jobs/${id}/files/${encodeURIComponent(s.files.zip)}?download=1`;
+        $('manifest-btn').href = `api/jobs/${id}/files/manifest.json?download=1`;
+        showResults();
         if (state.dsJob !== s.dataset_job && state.datasets.has(s.dataset_job)) activateDataset(s.dataset_job, false);
         computeStatus();
         renderAnalysisSelect();
@@ -1101,11 +1182,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------ chart helpers
+    // The PNG is drawn like the report figures (white background, light-theme colours), so it stays
+    // readable outside the page whatever the theme in use.
+    function downloadPng(gd) {
+        const { width, height } = gd._fullLayout;
+        Plotly.downloadImage(reportFig(JSON.parse(lightColours(JSON.stringify({ data: gd.data, layout: gd.layout, height })))),
+            { format: 'png', scale: 2, width, height, filename: `Lumos_${gd.id.replace(/^chart-/, '')}` });
+    }
+
     const PLOT_CONFIG = {
         displaylogo: false, responsive: true, displayModeBar: 'hover',
-        modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d', 'toggleSpikelines',
+        modeBarButtonsToRemove: ['toImage', 'lasso2d', 'select2d', 'autoScale2d', 'toggleSpikelines',
             'hoverClosestCartesian', 'hoverCompareCartesian'],
-        toImageButtonOptions: { format: 'png', scale: 2 },
+        modeBarButtonsToAdd: [{ name: 'Download plot as a png', icon: Plotly.Icons.camera, click: downloadPng }],
     };
 
     function axis(title, extra = {}) {
@@ -1156,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = $(id);
         if (!el) return;
         if (!window.Plotly) {
-            el.textContent = 'Chart library unavailable. Check /static/vendor/plotly.min.js.';
+            el.textContent = 'Chart library unavailable. Check static/vendor/plotly.min.js.';
             console.error('Lumos: Plotly did not load for', id);
             return;
         }
@@ -1347,7 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const key = `${state.deJob}|${wantRows}|${wantCols}|${rows.map((r) => r.gid).join(',')}`;
             if (!clusterCache.has(key)) {
                 try {
-                    const r = await fetch(`/api/jobs/${state.deJob}/cluster`, {
+                    const r = await fetch(`api/jobs/${state.deJob}/cluster`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ genes: rows.map((x) => x.gid), rows: wantRows, cols: wantCols }),
                     });
@@ -1604,8 +1693,8 @@ document.addEventListener('DOMContentLoaded', () => {
         $('int-pattern').innerHTML = '<option value="">All genes</option><option value="__sig">Significant somewhere</option>' +
             patterns.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
         $('int-pattern').value = '__sig';
-        $('int-files').innerHTML = `<a class="link-btn" href="/api/jobs/${id}/files/integration.csv?download=1">Complete table (.csv)</a>` +
-            `<a class="link-btn" href="/api/jobs/${id}/files/manifest.json?download=1">Manifest (.json)</a>`;
+        $('int-files').innerHTML = `<a class="link-btn" href="api/jobs/${id}/files/integration.csv?download=1">Complete table (.csv)</a>` +
+            `<a class="link-btn" href="api/jobs/${id}/files/manifest.json?download=1">Manifest (.json)</a>`;
         intGenes.sortKey = null;
         intGenes.setRows(T.symbol.map((_, k) => k));
         renderIntegrationCharts();
@@ -1747,14 +1836,19 @@ document.addEventListener('DOMContentLoaded', () => {
             layout: layout('I² (%)', 'genes', { bargap: 0.05 }) };
     }
 
+    ['meta-cluster-rows', 'meta-cluster-cols'].forEach((id) => $(id).addEventListener('change', () => { if (state.int && state.int.heatmap) show('chart-meta-heat', figMetaHeat()); }));
+
     function figMetaHeat() {
         const h = state.int.heatmap;
         if (!h) return Object.assign(emptyFig('No meta-analysis gene passed the thresholds.'), { height: 200 });
         const light = document.body.classList.contains('light-mode');
-        const x = h.samples.map((smp, k) => `${h.studies[k]} · ${smp}`);
+        // Ward orders computed with the integration (absent in older jobs: original order)
+        const rows = $('meta-cluster-rows').checked && h.row_order ? h.row_order : h.genes.map((_, i) => i);
+        const cols = $('meta-cluster-cols').checked && h.col_order ? h.col_order : h.samples.map((_, k) => k);
+        const x = cols.map((k) => `${h.studies[k]} · ${h.samples[k]}`);
         return { height: Math.max(260, 16 * h.genes.length + 120), data: [{
-            type: 'heatmap', z: h.z, x, y: h.genes, zmid: 0, zmin: -2.5, zmax: 2.5,
-            customdata: h.genes.map(() => h.groups),
+            type: 'heatmap', z: rows.map((i) => cols.map((k) => h.z[i][k])), x, y: rows.map((i) => h.genes[i]), zmid: 0, zmin: -2.5, zmax: 2.5,
+            customdata: rows.map(() => cols.map((k) => h.groups[k])),
             colorscale: [[0, css('--chart-1')], [0.5, light ? '#f4f4f2' : '#22252c'], [1, css('--chart-2')]],
             hovertemplate: '<b>%{y}</b><br>%{x} (%{customdata})<br>z = %{z:.2f}<extra></extra>', colorbar: { title: { text: 'z-score', side: 'right' }, thickness: 12, outlinewidth: 0 },
         }], layout: layout('', '', { xaxis: { showticklabels: false, type: 'category', showgrid: false, ticks: '' }, yaxis: { autorange: 'reversed', type: 'category', showgrid: false, ticks: '' }, margin: { l: 90, r: 14, t: 10, b: 20 } }) };
@@ -1762,6 +1856,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // gene table of the integration
     const intGenes = new DataTable($('int-genes'), {
+        anyTerm: true,
         columns: () => {
             const s = state.int;
             if (!s) return [];
@@ -1826,6 +1921,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             html += '</optgroup>';
         });
+        state.imports.forEach((s, id) => {
+            html += `<optgroup label="Imported: ${esc(s.name)}">` + s.profiles.map((p) =>
+                `<option value="res|${id}|profile:${esc(p.id)}">${esc(p.label)} (${int(p.genes)} genes)</option>`).join('') + '</optgroup>';
+        });
         sel.innerHTML = html;
         if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
         else if (state.deJob) sel.value = `de|${state.deJob}|analysis`;
@@ -1842,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const [kind, job, focus] = value.split('|');
         if (newSource) {
             const th = kind === 'de' ? (job === state.deJob ? { fdr: state.fdr, lfc: state.lfc } : state.analyses.get(job).parameters)
-                : state.integrations.get(job).thresholds;
+                : (kind === 'res' ? state.imports : state.integrations).get(job).thresholds;
             $('app-fdr').value = th.fdr;
             $('app-lfc').value = th.lfc;
         }
@@ -1860,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             universe = keys.size;
         } else {
-            const s = state.integrations.get(job), T = s.table;
+            const s = (kind === 'res' ? state.imports : state.integrations).get(job), T = s.table;
             if (focus === 'meta') {
                 T.symbol.forEach((g, k) => {
                     if (Number.isFinite(num(T.fdr[k]))) universe++;
@@ -1891,6 +1990,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const appTable = new DataTable($('app-table'), {
+        anyTerm: true,
         selectable: true,
         columns: () => {
             const src = state.appSource;
@@ -1970,7 +2070,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadLibraryList() {
         if (librariesLoaded) return;
         librariesLoaded = true;
-        fetch('/api/enrichr/libraries').then((r) => r.json()).then((d) => {
+        fetch('api/enrichr/libraries').then((r) => r.json()).then((d) => {
             const sel = $('lib-add');
             if (!d.libraries.length) {
                 sel.innerHTML = `<option value="">${esc(d.error || 'Library list unavailable')}</option>`;
@@ -2012,6 +2112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fd.append('fdr', $('app-fdr').value);
         fd.append('lfc', $('app-lfc').value);
         fd.append('keep_nonhuman', $('keep-nonhuman').checked);
+        for (const f of $('reg-files').files) fd.append('regulator_tables', f);
         try {
             await appJob.start(fd, `Enrichment: ${up.length} up and ${down.length} down genes…`);
         } catch (e) {
@@ -2025,6 +2126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.appJob = id;
         state.app = s;
         state.stringData = null;
+        $('string-csv').classList.add('hidden');
         if (state.stringNet) { state.stringNet.destroy(); state.stringNet = null; }
         $('string-msg').style.display = 'flex';
         $('string-msg').textContent = 'Build the network to see the associations among the ticked genes.';
@@ -2039,7 +2141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         s.libraries.forEach((l) => tiles.push(tile(l.name, int(l.n_significant), `of ${int(l.n_terms)} terms with FDR < 0.05 · ${esc(l.engine.replace(/ \(.*\)/, ''))}`)));
         $('app-tiles').innerHTML = tiles.join('');
         $('app-notes').innerHTML = (s.notes || []).map((n) => `<li>${esc(n)}</li>`).join('');
-        $('tf-csv').href = `/api/jobs/${id}/files/regulators.csv?download=1`;
+        $('tf-csv').href = `api/jobs/${id}/files/regulators.csv?download=1`;
         $('tf-csv').classList.toggle('hidden', !s.files.regulators);
         renderAppCharts();
         renderFiles();
@@ -2050,9 +2152,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const DIR = { 'Up-regulated': ['↑', '--chart-2'], 'Down-regulated': ['↓', '--chart-1'], Combined: ['•', '--chart-3'] };
     const geneLabelList = (genes) => genes.map(labelOfSymbol).join(', ');
 
+    const chartFdr = () => { const v = Number($('app-chart-fdr').value); return v > 0 && v <= 1 ? v : 0.05; };
+    $('app-chart-fdr').addEventListener('input', debounce(() => { if (state.app) renderAppCharts(); }, 300));
+
     function figLibrary(l) {
-        const terms = l.terms.slice(0, 15);
-        if (!terms.length) return emptyFig('No terms.');
+        const cut = chartFdr();
+        const terms = l.terms.filter((t) => t.fdr !== null && t.fdr <= cut).slice(0, 15);
+        if (!terms.length) return emptyFig(`No term with FDR ≤ ${cut}.`);
         return { height: 460, data: [{
             type: 'bar', orientation: 'h',
             x: terms.map((t) => -Math.log10(Math.max(t.fdr ?? 1, 1e-300))),
@@ -2067,15 +2173,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }) };
     }
 
-    function bestRegulators(n = 20) {
+    function bestRegulators(n = 20, cut = 1) {
         const best = new Map();
-        (state.app.regulators || []).forEach((r) => { if (!best.has(r.tf) || (r.fdr ?? 1) < (best.get(r.tf).fdr ?? 1)) best.set(r.tf, r); });
+        (state.app.regulators || []).filter((r) => r.fdr === null || r.fdr === undefined || r.fdr <= cut).forEach((r) => { if (!best.has(r.tf) || (r.fdr ?? 1) < (best.get(r.tf).fdr ?? 1)) best.set(r.tf, r); });
         return [...best.values()].sort((a, b) => (a.fdr ?? 1) - (b.fdr ?? 1)).slice(0, n);
     }
 
     function figRegulators() {
-        const regs = bestRegulators(20);
-        if (!regs.length) return emptyFig('No regulators.');
+        const regs = bestRegulators(20, chartFdr());
+        if (!regs.length) return emptyFig(`No regulator with FDR ≤ ${chartFdr()}.`);
         const libs = [...new Set(regs.map((r) => r.library))];
         return { height: 460, data: libs.map((lib, k) => {
             const rs = regs.filter((r) => r.library === lib);
@@ -2099,8 +2205,8 @@ document.addEventListener('DOMContentLoaded', () => {
             box.innerHTML = libs.map((l, k) => `
                 <div class="chart-card">
                     <div class="card-head"><div><h3>${esc(l.name)}</h3>
-                    <p class="chart-sub">Top 15 terms by adjusted p-value (↑ up-regulated list, ↓ down-regulated list); bar labels give the number of genes in the term.</p></div>
-                    ${l.file ? `<a class="link-btn" href="/api/jobs/${state.appJob}/files/${encodeURIComponent(l.file)}?download=1">.csv</a>` : ''}</div>
+                    <p class="chart-sub">Top 15 terms with FDR ≤ the chart threshold, by adjusted p-value (↑ up-regulated list, ↓ down-regulated list); bar labels give the number of genes in the term.</p></div>
+                    ${l.file ? `<a class="link-btn" href="api/jobs/${state.appJob}/files/${encodeURIComponent(l.file)}?download=1">.csv</a>` : ''}</div>
                     <div class="plot" id="chart-lib-${k}" style="height: 460px;"></div>
                     <details class="explain" style="margin: 8px 0 10px;"><summary>Table (top 100 terms)</summary>
                         <div class="table-wrap scroll" style="margin-top: 8px; max-height: 360px;"><table class="data-table wrap" id="table-lib-${k}"></table></div>
@@ -2120,6 +2226,9 @@ document.addEventListener('DOMContentLoaded', () => {
             $('tf-sub').textContent = `${s.tf_libraries.join(' and ')}: candidate regulators whose annotated targets are over-represented among the selected genes ` +
                 '(best term per factor, top 20; ↑/↓ list and number of targets). Target-set enrichment, not proof of binding or causality.';
             show('chart-tf', figRegulators());
+            $('tf-table').innerHTML = '<thead><tr><th>Regulator</th><th>Term</th><th>Library</th><th>List</th><th class="num">FDR</th><th>Targets</th></tr></thead><tbody>' +
+                s.regulators.slice(0, 500).map((r) => `<tr><td>${esc(labelOfSymbol(r.tf))}</td><td>${esc(r.term)}</td><td>${esc(r.library)}</td><td>${esc(r.direction)}</td>` +
+                    `<td class="num">${fmtP(r.fdr)}</td><td>${esc(geneLabelList(r.targets))}</td></tr>`).join('') + '</tbody>';
         }
     }
 
@@ -2138,11 +2247,11 @@ document.addEventListener('DOMContentLoaded', () => {
         $('string-msg').style.display = 'flex';
         $('string-msg').textContent = `Asking STRING about ${genes.length} genes…`;
         try {
-            const r = await fetch(`/api/jobs/${state.appJob}/string`, {
+            const r = await fetch(`api/jobs/${state.appJob}/string`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ genes, score: Number($('string-score').value), network_type: $('string-type').value }),
             });
-            const d = await r.json();
+            const d = await jsonOf(r);
             if (!r.ok) throw new Error(d.error || 'STRING failed.');
             state.stringData = d;
             drawString();
@@ -2165,9 +2274,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    $('string-csv').addEventListener('click', () => downloadCsv(`lumos_STRING_${state.app.name || 'APP'}.csv`.replace(/[^A-Za-z0-9_.-]+/g, '_'),
+        ['Gene A', 'Gene B', 'Combined score'], state.stringData.edges.map((e) => [labelOfSymbol(e.a), labelOfSymbol(e.b), e.score])));
+
     function drawString() {
         const d = state.stringData;
         if (state.stringNet) { state.stringNet.destroy(); state.stringNet = null; }
+        $('string-csv').classList.toggle('hidden', !d.edges.length);
         if (!d.edges.length) {
             $('string-msg').style.display = 'flex';
             $('string-msg').textContent = 'STRING found no associations among these genes at this score.';
@@ -2184,7 +2297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const col = st > 0 ? c.up : st < 0 ? c.down : c.neutral;
             return { id: n, label: labelOfSymbol(n), shape: 'dot', size: 8 + Math.min(16, 2 * (degree.get(n) || 0)),
                 color: { background: col, border: col, highlight: { background: col, border: c.text } },
-                font: { color: c.text, size: 13, face: 'Inter' }, title: `${labelOfSymbol(n)} · ${degree.get(n) || 0} associations` };
+                font: { color: c.text, size: 13, face: 'Inter, system-ui, sans-serif' }, title: `${labelOfSymbol(n)} · ${degree.get(n) || 0} associations` };
         });
         const edges = d.edges.map((e) => {
             const shared = terms.filter((t) => t.genes.includes(e.a.toUpperCase()) && t.genes.includes(e.b.toUpperCase())).map((t) => t.term);
@@ -2229,8 +2342,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const pgQuery = () => new URLSearchParams({ terms: $('pg-n').value || 6, term_fdr: $('pg-term-fdr').value, tf_fdr: $('pg-fdr').value });
 
     async function fetchPG() {
-        const r = await fetch(`/api/jobs/${state.appJob}/priorigraph?${pgQuery()}`);
-        const d = await r.json();
+        const r = await fetch(`api/jobs/${state.appJob}/priorigraph?${pgQuery()}`);
+        const d = await jsonOf(r);
         if (!r.ok) throw new Error(d.error || 'PrioriGraph failed.');
         return d;
     }
@@ -2338,19 +2451,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (n.kind === 'pathway') {
                 const col = h ? c.hit : c.pathway;
                 return { id: n.id, label: n.label.length > 32 ? n.label.slice(0, 30) + '…' : n.label, shape: 'hexagon', size: h ? 26 : 20,
-                    color: { background: col, border: col }, font: { color: c.text, size: 14, face: 'Inter' },
+                    color: { background: col, border: col }, font: { color: c.text, size: 14, face: 'Inter, system-ui, sans-serif' },
                     title: `${n.label}\n${n.library} · FDR ${fmtP(n.fdr)} · ${n.directions.join(', ')}` };
             }
             if (n.kind === 'tf') {
                 const col = h ? c.hit : c.tf;
                 return { id: n.id, label: labelOfSymbol(n.id), shape: 'square', size: h ? 18 : 12,
                     color: { background: col, border: n.status ? stCol : col }, borderWidth: n.status ? 3 : 1,
-                    font: { color: c.text, size: 15, face: 'Inter' },
+                    font: { color: c.text, size: 15, face: 'Inter, system-ui, sans-serif' },
                     title: `${labelOfSymbol(n.id)}: candidate regulator${n.status ? ` (itself ${n.status}-regulated)` : ''}` };
             }
             const col = h ? c.hit : stCol;
             return { id: n.id, label: labelOfSymbol(n.id), shape: 'dot', size: h ? 16 : 9,
-                color: { background: col, border: col }, font: { color: c.text, size: 14, face: 'Inter' },
+                color: { background: col, border: col }, font: { color: c.text, size: 14, face: 'Inter, system-ui, sans-serif' },
                 title: `${labelOfSymbol(n.id)}${n.status ? ` (${n.status}-regulated)` : ''}` };
         });
         if (searchOnly && state.pgNet) {
@@ -2434,7 +2547,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (v === 'propagation' && !state.pgProp) loadPropagation();
         pgTable.sortKey = null;
         pgTable.setRows(PG_VIEWS[v].rows());
-        if (v === 'sensitivity' && state.pgSens) $('pg-view-desc').textContent += ` ${state.pgSens.configurations} configurations evaluated.`;
+        if (v === 'sensitivity' && state.pgSens) $('pg-view-desc').textContent += state.pgSens.error ? ` ${state.pgSens.error}` : ` ${state.pgSens.configurations} configurations evaluated.`;
+        const all = v === 'sensitivity' && state.pgSens && state.pgSens.file;
+        $('pg-sens-all').classList.toggle('hidden', !all);
+        if (all) $('pg-sens-all').href = `api/jobs/${state.appJob}/files/${encodeURIComponent(state.pgSens.file)}?download=1`;
         if (v === 'propagation' && state.pgProp) $('pg-view-desc').textContent += ` Converged: ${state.pgProp.converged ? 'yes' : 'no'} (${state.pgProp.iterations} iterations).`;
     }
     document.querySelectorAll('input[name="pg_view"]').forEach((el) => el.addEventListener('change', renderPGView));
@@ -2445,8 +2561,8 @@ document.addEventListener('DOMContentLoaded', () => {
         p.set('restart', $('pg-restart').value);
         p.set('decay', $('pg-decay').value);
         try {
-            const r = await fetch(`/api/jobs/${state.appJob}/propagation?${p}`);
-            const d = await r.json();
+            const r = await fetch(`api/jobs/${state.appJob}/propagation?${p}`);
+            const d = await jsonOf(r);
             if (!r.ok) throw new Error(d.error);
             state.pgProp = d;
         } catch (e) {
@@ -2479,15 +2595,15 @@ document.addEventListener('DOMContentLoaded', () => {
         $('pg-sens-btn').disabled = true;
         $('pg-view-desc').textContent = 'Evaluating the configurations…';
         try {
-            const r = await fetch(`/api/jobs/${state.appJob}/sensitivity`, {
+            const r = await fetch(`api/jobs/${state.appJob}/sensitivity`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(Object.assign(grid, { tf_fdr: Number($('pg-fdr').value), top_k: Number($('pg-topk').value) || 20 })),
             });
-            const d = await r.json();
+            const d = await jsonOf(r);
             if (!r.ok) throw new Error(d.error);
             state.pgSens = d;
         } catch (e) {
-            state.pgSens = { rows: [], configurations: 0 };
+            state.pgSens = { rows: [], configurations: 0, error: e.message };
         }
         $('pg-sens-btn').disabled = false;
         renderPGView();
@@ -2510,6 +2626,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const fdrCol = cols.find((c) => /FDR/.test(c.label));
         return { columns: cols.map((c, k) => [c.key, c.label, fmtOf(c, k)]), rows, sort: (fdrCol || cols[0]).key, asc: true };
+    }
+
+    // A PNG of a chart drawn in the dark theme gets the light-theme values of its theme colours, so text,
+    // axes and grid stay readable on white (the HTML report rebuilds its figures with withLightTheme).
+    const THEME_TOKENS = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-muted',
+        '--chart-text', '--chart-ink', '--chart-grid', '--chart-axis', '--accent-color', '--panel-bg', '--text-main', '--text-muted'];
+    function lightColours(json) {
+        if (document.body.classList.contains('light-mode')) return json;
+        const dark = THEME_TOKENS.map(css);
+        const light = withLightTheme(() => THEME_TOKENS.map(css));
+        const swap = new Map(dark.map((v, i) => [JSON.stringify(v), JSON.stringify(light[i])]).filter(([d, l]) => d !== '""' && d !== l));
+        if (!swap.size) return json;
+        const re = new RegExp([...swap.keys()].map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+        return json.replace(re, (m) => swap.get(m));
     }
 
     function reportFig(fig) {
@@ -2609,7 +2739,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sections.push({ id: 'string', title: 'STRING associations', desc: $('string-info').textContent,
                     table: { columns: [['a', 'Gene A', 'text'], ['b', 'Gene B', 'text'], ['score', 'Score', 'fixed3']], rows: state.stringData.edges.map((e) => [labelOfSymbol(e.a), labelOfSymbol(e.b), e.score]), sort: 'score', asc: false } });
             }
-            return { module: 'APP', title: `APP enrichment: ${s.source.label}`, file_id: 'APP',
+            return { module: 'APP', title: `APP enrichment: ${s.source.label}`, file_id: s.name || 'APP',
                 info: [['Gene source', `${s.source.label}${s.source.dataset ? ` (${s.source.dataset})` : ''}`], ['Gene lists', s.strategy === 'separate' ? 'up- and down-regulated separately' : 'combined'],
                     ['Genes', `${s.genes.filter((g) => g.direction === 'up').length} up, ${s.genes.filter((g) => g.direction === 'down').length} down`],
                     ['Background', `${s.background.source} (${s.background.size} genes)`], ['Libraries', s.libraries.map((l) => `${l.name} (${l.engine})`).join('; ')],
@@ -2634,7 +2764,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPGView();
             sections.push({ id: 'edges', title: 'Edges with provenance', table: { columns: [['tf', 'Regulator', 'text'], ['target', 'Target', 'text'], ['library', 'Library', 'text'], ['direction', 'List', 'text'], ['term', 'Term', 'text'], ['fdr', 'FDR', 'exp2']],
                 rows: d.edge_table.map((e) => [e.tf, e.target, e.library, e.direction, e.term, e.fdr]), sort: 'fdr', asc: true, filter: 'library' } });
-            return { module: 'PG', title: `PrioriGraph: ${state.app.source.label}`, file_id: 'PG',
+            return { module: 'PG', title: `PrioriGraph: ${state.app.source.label}`, file_id: state.app.name || 'PG',
                 info: [['Gene source', state.app.source.label], ['Enriched terms', `top ${$('pg-n').value} with FDR ≤ ${$('pg-term-fdr').value}`], ['Regulators', `FDR ≤ ${$('pg-fdr').value} (${d.stats.tf_libraries.join(', ')})`],
                     ...(Number($('pg-fdr').value) > 0.05 ? [['Note', `exploratory: includes candidate regulators with FDR up to ${$('pg-fdr').value}`]] : []),
                     ...(state.pgProp ? [['Propagation', `restart ${state.pgProp.restart}, decay ${state.pgProp.decay}`]] : [])],
@@ -2658,8 +2788,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
         btn.textContent = 'Building the report…';
         try {
-            const r = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!r.ok) throw new Error((await r.json()).error || 'The report could not be built.');
+            const r = await fetch('api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!r.ok) throw new Error((await jsonOf(r)).error || 'The report could not be built.');
             const name = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
             downloadBlob(name ? name[1] : 'Lumos_report.html', await r.blob());
         } catch (e) {
@@ -2672,7 +2802,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------ files
     function renderFiles() {
         const rows = [];
-        const add = (job, file, desc) => rows.push(`<div class="file-row"><div><a href="/api/jobs/${job}/files/${encodeURIComponent(file)}?download=1">${esc(file)}</a>` +
+        const add = (job, file, desc) => rows.push(`<div class="file-row"><div><a href="api/jobs/${job}/files/${encodeURIComponent(file)}?download=1">${esc(file)}</a>` +
             `<div class="file-desc">${esc(desc)}</div></div></div>`);
         const head = (text) => rows.push(`<h3 class="section-title" style="margin: 14px 0 4px;">${esc(text)}</h3>`);
         if (state.dataset && !state.dataset.needs_expression) {
@@ -2711,7 +2841,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchJob(id) {
         if (!/^[0-9a-f]{12}$/.test(id || '')) return null;
         try {
-            const r = await fetch(`/api/jobs/${id}`);
+            const r = await fetch(`api/jobs/${id}`);
             return r.ok ? await r.json() : null;
         } catch (e) {
             return null;
@@ -2750,17 +2880,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d && d.state === 'done') { state.integrations.set(id, d.summary); activateIntegration(id, false); }
             else if (d && d.state === 'running') intJob.follow(id, 'Integration…');
         }
+        for (const id of list('res')) {
+            const d = await fetchJob(id);
+            if (d && d.state === 'done') addImport(id, d.summary, false);
+            else if (d && d.state === 'running') importJob.follow(id, 'Reading the result tables…');
+        }
         renderAppSources();
         const app = await fetchJob(p.get('app'));
         if (app && app.state === 'running') appJob.follow(p.get('app'), 'Enrichment…');
         if (app && app.state === 'done') {
             const src = app.summary.source;
-            const value = src.kind === 'de' ? `de|${src.job}|analysis` : `int|${src.job}|${src.focus}`;
+            const value = src.kind === 'de' ? `de|${src.job}|analysis` : `${src.kind === 'results' ? 'res' : 'int'}|${src.job}|${src.focus}`;
             if ([...$('app-source').options].some((o) => o.value === value)) { $('app-source').value = value; buildAppSource(true); }
             showApp(p.get('app'), app.summary, false);
         }
         renderDatasetBar();
         refreshButtons();
+        updateUrl();
     }());
 
     refreshButtons();

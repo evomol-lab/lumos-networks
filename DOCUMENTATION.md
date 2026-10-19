@@ -6,8 +6,8 @@ association context, and **PG** (PrioriGraph) builds transparent prior-knowledge
 describes every calculation and the biological interpretation it can (and cannot) support.
 
 Lumos runs on your own computer as a local web application. Only accessions, gene lists and
-identifiers are sent to the public services it uses (NCBI GEO, MyGene.info, Ensembl,
-Enrichr/Speedrichr and STRING).
+identifiers are sent to the public services it uses (NCBI GEO, MyGene.info, Ensembl, Enrichr and
+STRING); the enrichment itself is computed locally on the downloaded Enrichr libraries.
 
 Contents
 
@@ -103,6 +103,11 @@ GEO layouts are heterogeneous: always compare the matched columns with the acces
 * **Sample table** (optional): one row per sample; the column that best matches the expression column
   names becomes the sample identifier. Other columns can define groups and design terms (batch,
   subject, age…).
+* **Result tables (APP)**: differential-expression results computed elsewhere (DESeq2, limma, edgeR…)
+  or exported by Lumos go straight to APP and PG. Each table needs a gene column (`Symbol`, `Gene`,
+  `Gene_ID`…), the log2 fold change (`Log2FC`, `log2FoldChange`, `logFC`) and the adjusted p-value
+  (`FDR`, `padj`, `adj.P.Val`); tables of several analyses (`Log2FC_<name>`/`FDR_<name>` columns) give
+  one gene source per analysis. Genes without an adjusted p-value are left out of the background.
 
 ### What Lumos detects
 
@@ -258,10 +263,15 @@ $$P(X \ge k) = \sum_{i=k}^{\min(n, M)} \frac{\binom{M}{i}\binom{N-M}{n-i}}{\bino
 * **Background**: by default every gene tested in the gene source (the universe of genes that could
   have been selected, not the whole genome); a custom list can be pasted. Query genes outside it are
   excluded and counted.
-* **Engine**: Speedrichr (Enrichr with an explicit background) is used first; if it is unavailable,
-  Lumos downloads the same Enrichr library and applies the one-sided hypergeometric test locally,
-  restricting the universe to genes covered by the library, followed by Benjamini–Hochberg
-  correction. The engine is recorded in every table.
+* **Test**: Lumos downloads the Enrichr library (kept for 30 days; the cached copy is used when Enrichr
+  cannot be reached) and computes the one-sided hypergeometric test itself, so the result is the same
+  on any computer or server. As in clusterProfiler, the universe $N$ is the background restricted to
+  the genes annotated in the library (genes in no gene set cannot be in any term), and the
+  Benjamini–Hochberg correction runs within each library over the tested terms, those with at least
+  one query gene. The annotated universe and the engine are recorded in the summary and the manifest.
+  Enrichr's own service (Speedrichr) keeps unannotated background genes in $N$, which makes p-values
+  smaller; earlier versions used it first and fell back to a local test with a different correction,
+  so results could depend on where Lumos ran.
 * **Gene lists**: up- and down-regulated genes are queried **separately** by default; *Combined* uses
   one list. Direction labels describe the input list; ORA alone does not show that a pathway is
   activated or inhibited.
@@ -276,6 +286,12 @@ TRRUST 2019 (curated TF → target interactions) and JASPAR PWM 2025 (binding mo
 default, each on its own and kept as evidence source; ChEA 2022 and ENCODE/ChEA consensus (ChIP-seq)
 can be added. A reported factor is a **candidate regulator whose annotated target set is enriched**:
 not proof of binding, activity, direction of regulation or causality.
+
+Your own regulator → target tables (TRRUST or JASPAR exports, curated lists) can be uploaded with the
+enrichment: a TF column (`TF`, `TF_Symbol`, `TF_Name`) and a target column (`Target`, `Target_Gene`,
+`Genes`, `Targets`; several targets separated by `;`). Their targets among the queried genes join the
+regulators of the libraries (untick these to use only your tables); without an adjusted p-value column
+the interactions are used as given and pass every regulator FDR of PG.
 
 ### STRING associations
 
@@ -410,6 +426,35 @@ With rootful Docker on Linux, add `--user "$(id -u):$(id -g)"` so the job files 
 | `LUMOS_CACHE_DIR` | `<jobs>/_cache` | downloaded Enrichr libraries (local ORA fallback) |
 | `LUMOS_JOB_RETENTION_DAYS` | `0` | delete jobs older than this at start-up (0 keeps all) |
 | `LUMOS_MAX_DOWNLOAD_MB` | `2048` | largest GEO supplementary file or archive downloaded |
+| `LUMOS_THREADS` | `8` | simultaneous requests served by waitress |
+| `LUMOS_LIBRARY_DIR` | (empty; `/opt/lumos/libraries` in the image) | Enrichr libraries used before any download |
+| `LUMOS_UPDATE_CHECK` | `0` (`1` in the image) | compare the version with the releases on Docker Hub at start-up |
+| `LUMOS_UPDATE_REPO` | `evomol/lumos-networks` | Docker Hub repository of that check |
+
+### Running on a server
+
+The interface is served by **waitress** (one process with several threads) when it is installed, as in
+the container image; otherwise by the Flask development server. Keep a single process: the running
+jobs are tracked in memory, so several worker processes (e.g. gunicorn `-w 4`) would report running
+jobs as failed. The page loads Plotly, vis-network, marked and KaTeX from `static/vendor`, so it also
+works for browsers without Internet access; the **server** needs Internet access for GEO, MyGene.info,
+Ensembl, Enrichr and STRING (set `HTTPS_PROXY` if it goes through a proxy).
+
+Behind a reverse proxy, Lumos can be published under a sub-path; raise the upload size and the
+waiting time (uploads of count tables and some on-demand analyses exceed the nginx defaults of 1 MB
+and 60 s):
+
+```
+location /lumos/ {
+    proxy_pass http://127.0.0.1:5070/;
+    client_max_body_size 2g;
+    proxy_read_timeout 600s;
+    proxy_send_timeout 600s;
+}
+```
+
+Outside a container, other computers reach Lumos only with `LUMOS_HOST=0.0.0.0` and the port
+allowed by the host firewall (Windows asks the first time; on Linux, e.g. `ufw allow 5070/tcp`).
 
 ---
 
@@ -432,7 +477,7 @@ Known limits:
 * Two-condition comparisons with additive design terms; interactions and splines are not offered.
 * GEO metadata and supplementary layouts are heterogeneous: check the matched samples for every
   accession.
-* External resources (GEO, Speedrichr/Enrichr, STRING, JASPAR, TRRUST, MyGene.info) change over
+* External resources (GEO, Enrichr libraries, STRING, JASPAR, TRRUST, MyGene.info) change over
   time: keep the exported results and query dates. The default libraries are human; for other species
   add the corresponding Enrichr libraries.
 * Knowledge-base coverage and filtering affect network rankings; sensitivity analysis does not replace
@@ -454,6 +499,12 @@ Sauron and The Room of Conformations, keeping its methods (`lumos_core.py`, `lum
 * **Gene symbols** for Ensembl/Entrez/probe IDs are optional, cached, and switchable in every plot.
 * **Several datasets and analyses per session**, integrated from one tab (contrasts, meta-analysis,
   multi-tissue), with design terms available in every analysis.
+* **One enrichment engine**: the hypergeometric test is always computed locally with the
+  clusterProfiler conventions (see APP), instead of Speedrichr first with a local fallback that used
+  another multiple-testing correction.
+* **Result tables and regulator tables** computed elsewhere can be imported (as in the Streamlit
+  APP and PG); the meta-analysis heatmap can be clustered; charts are exported as PNG on white whatever
+  the theme; the sensitivity analysis exports every configuration.
 * **Fixes**: the mouse/rat term filter matches whole words (a substring test also removed GO terms
   such as *proliferation* or *migration*); TF names are parsed correctly (`TP53 human` → TP53); the
   JASPAR library is `JASPAR_PWM_Human_2025` (`JASPAR_2024` does not exist in Enrichr); probes
@@ -477,6 +528,8 @@ Sauron and The Room of Conformations, keeping its methods (`lumos_core.py`, `lum
   41:D991–D995.
 * Wu C, MacLeod I, Su AI (2013). BioGPS and MyGene.info. *Nucleic Acids Res* 41:D561–D565.
 * Xie Z et al. (2021). Gene set knowledge discovery with Enrichr. *Current Protocols* 1:e90.
+* Yu G, Wang LG, Han Y, He QY (2012). clusterProfiler: an R package for comparing biological themes
+  among gene clusters. *OMICS* 16:284–287.
 * Han H et al. (2018). TRRUST v2. *Nucleic Acids Res* 46:D380–D386; Rauluseviciute I et al. (2024).
   JASPAR 2024. *Nucleic Acids Res* 52:D174–D182.
 * Szklarczyk D et al. (2023). The STRING database in 2023. *Nucleic Acids Res* 51:D638–D646.

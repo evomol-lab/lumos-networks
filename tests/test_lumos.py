@@ -7,6 +7,7 @@ import gzip
 import json
 import os
 import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -286,6 +287,8 @@ def test_integration_modes(tmp_path):
         s = json.loads((out / 'summary.json').read_text())
         if mode == 'meta':
             assert s['pattern_counts'].get('Up-regulated', 0) >= 10 and s['heatmap']
+            h = s['heatmap']                                    # Ward orders for the clustered view
+            assert sorted(h['row_order']) == list(range(len(h['genes']))) and sorted(h['col_order']) == list(range(len(h['samples'])))
         else:
             assert s['pattern_counts'].get('Conserved Up', 0) >= 10
 
@@ -333,6 +336,90 @@ def test_priorigraph_network_and_rankings(tmp_path):
     assert prop['converged'] and abs(sum(r['rwr'] for r in prop['rows']) - 1) < 1e-3
     sens = lumos.sensitivity(folder, 1.0, (0.01, 0.05), (0.5, 1.0), (0.5, 0.7), (0.25, 0.5), 3)
     assert sens['configurations'] > 0 and sens['rows'][0]['node']
+
+
+def test_import_result_tables(tmp_path):
+    # DESeq2 (R write.csv), limma topTable (R write.table: one header name fewer) and a Lumos integration export
+    (tmp_path / 'deseq2.csv').write_text('"","baseMean","log2FoldChange","lfcSE","pvalue","padj"\n'
+                                         '"TP53",10,2.5,0.3,1e-10,1e-8\n"EGFR",5,-1.2,0.3,1e-4,0.01\n"MYC",4,0.1,0.3,0.8,NA\n')
+    (tmp_path / 'limma.tsv').write_text('logFC\tAveExpr\tP.Value\tadj.P.Val\nTP53\t1.5\t8\t1e-6\t1e-4\n'
+                                        'GAPDH\t0.2\t12\t0.5\t0.7\n')
+    (tmp_path / 'tissues.csv').write_text('Symbol,Log2FC_blood,FDR_blood,Log2FC_liver,FDR_liver\n'
+                                          'tp53,1.1,0.01,0.9,0.02\nEGFR,-2,0.001,,\n')
+    out = tmp_path / 'job'
+    assert lumos.main(['import', '--tables', str(tmp_path / 'deseq2.csv'), str(tmp_path / 'limma.tsv'),
+                       str(tmp_path / 'tissues.csv'), '--outdir', str(out)]) == 0
+    s = json.loads((out / 'summary.json').read_text())
+    assert s['kind'] == 'results' and [p['label'] for p in s['profiles']] == [
+        'deseq2', 'limma', 'tissues · blood', 'tissues · liver']
+    assert [p['genes'] for p in s['profiles']] == [2, 2, 2, 1]           # MYC has no adjusted p-value
+    ev, universe, source, _ = lumos.source_evidence(str(out), 'profile:' + s['profiles'][2]['id'], 0.05, 1.0)
+    assert source['kind'] == 'results' and set(universe) == {'TP53', 'EGFR'}
+    assert ev.set_index('Symbol').loc['TP53', 'Effect'] == pytest.approx(1.1)
+    ev, _, _, _ = lumos.source_evidence(str(out), 'analysis', 0.05, 1.0)     # first table by default
+    assert ev.set_index('Symbol').loc['EGFR', 'FDR'] == pytest.approx(0.01)
+    (tmp_path / 'bad.csv').write_text('Symbol,Score\nTP53,1\n')
+    assert lumos.main(['import', '--tables', str(tmp_path / 'bad.csv'), '--outdir', str(tmp_path / 'bad')]) == 1
+
+
+def test_uploaded_regulator_tables(tmp_path):
+    (tmp_path / 'trrust.tsv').write_text('TF\tTarget\tMode\nTF1\tA\tActivation\nTF1\tC\tRepression\nTF3\tZ\tUnknown\n')
+    (tmp_path / 'jaspar.csv').write_text('TF_Name,Genes,Adjusted P-value\nTF4,A;B,0.2\n')
+    lists = {'Up-regulated': ['A', 'B'], 'Down-regulated': ['C']}
+    regs = lumos.uploaded_regulators(str(tmp_path / 'trrust.tsv'), lists)
+    assert [(r['tf'], r['direction'], r['targets'], r['fdr']) for r in regs] == [
+        ('TF1', 'Up-regulated', ['A'], None), ('TF1', 'Down-regulated', ['C'], None)]     # TF3: no queried target
+    assert lumos.uploaded_regulators(str(tmp_path / 'jaspar.csv'), lists)[0]['targets'] == ['A', 'B']
+    (tmp_path / 'pg').mkdir()
+    folder = enrich_folder(tmp_path / 'pg')
+    s = json.loads((tmp_path / 'pg' / 'summary.json').read_text())
+    s['regulators'] += [dict(r, tf='TF9') for r in regs]
+    (tmp_path / 'pg' / 'summary.json').write_text(json.dumps(s))
+    g = lumos.priorigraph(folder, n_terms=2, term_fdr=0.05, tf_fdr=0.005)    # no Enrichr regulator passes
+    assert {n['id'] for n in g['nodes'] if n['kind'] == 'tf'} == {'TF9'}      # tables without p-values are kept
+    assert g['diagnostics']['regulator_counts'] == [2, 2, 2, 3, 3]          # counted at every threshold
+
+
+def test_ora_annotated_universe_and_tested_terms(monkeypatch):
+    from scipy import stats
+    sets = {'T1': {'A', 'B', 'C', 'D'}, 'T2': {'E', 'F'}, 'T3': {'X1', 'X2'}}          # T3 holds no query gene
+    monkeypatch.setattr(lumos, 'library_sets', lambda name: sets)
+    background = ['A', 'B', 'C', 'D', 'E', 'F', 'X1', 'X2', 'U1', 'U2']                 # U1, U2: in no gene set
+    df, engine, size = lumos.ORA(background).run(['A', 'B', 'E', 'U1'], 'LIB')
+    assert engine == lumos.ORA_ENGINE and size['annotated'] == 8 and size['query'] == 4
+    row = df.set_index('Term')
+    assert set(row.index) == {'T1', 'T2'} and list(row.loc['T1', 'Genes']) == ['A', 'B']
+    p1, p2 = stats.hypergeom.sf(1, 8, 4, 3), stats.hypergeom.sf(0, 8, 2, 3)          # N=8 annotated, n=3 (A, B, E)
+    q = lumos.benjamini_hochberg(np.array([p1, p2]))                                     # BH over the 2 tested terms
+    assert row.loc['T1', 'PValue'] == pytest.approx(p1) and row.loc['T1', 'FDR'] == pytest.approx(q[0])
+    assert row.loc['T2', 'FDR'] == pytest.approx(q[1])
+
+
+def test_library_cache_used_when_enrichr_unreachable(tmp_path, monkeypatch):
+    monkeypatch.setattr(lumos, 'CACHE_DIR', str(tmp_path))
+    cached = tmp_path / 'enrichr_LIB.txt'
+    cached.write_text('T1\t\tA\tB\nT2\t\tC\n', encoding='utf-8')
+    old = time.time() - 40 * 86400                                                       # past the 30-day refresh
+    os.utime(cached, (old, old))
+
+    class Blocked:
+        def get(self, *args, **kwargs):
+            raise ConnectionError('address blocked')
+
+    monkeypatch.setattr(lumos, 'session', lambda: Blocked())
+    assert lumos.library_sets('LIB') == {'T1': {'A', 'B'}, 'T2': {'C'}}
+    with pytest.raises(ConnectionError):
+        lumos.library_sets('OTHER')                                                      # nothing cached
+
+
+def test_library_shipped_with_the_image_is_used_first(tmp_path, monkeypatch):
+    shipped = tmp_path / 'shipped'
+    shipped.mkdir()
+    (shipped / 'enrichr_LIB.txt').write_text('T1\t\tA\tB\n', encoding='utf-8')
+    monkeypatch.setattr(lumos, 'LIBRARY_DIR', str(shipped))
+    monkeypatch.setattr(lumos, 'CACHE_DIR', str(tmp_path / 'cache'))
+    monkeypatch.setattr(lumos, 'session', lambda: pytest.fail('the shipped library must not be downloaded'))
+    assert lumos.library_sets('LIB') == {'T1': {'A', 'B'}}
 
 
 def test_html_report_escapes_text():
