@@ -412,6 +412,23 @@ def test_library_cache_used_when_enrichr_unreachable(tmp_path, monkeypatch):
         lumos.library_sets('OTHER')                                                      # nothing cached
 
 
+def test_interrupted_library_download_is_retried(tmp_path, monkeypatch):
+    calls = []
+
+    class Flaky:
+        def get(self, *args, **kwargs):
+            calls.append(1)
+            if len(calls) < 3:
+                raise ConnectionError('Response ended prematurely')
+            return type('R', (), {'status_code': 200, 'text': 'T1\t\tA\tB\n', 'raise_for_status': lambda self: None})()
+
+    monkeypatch.setattr(lumos, 'CACHE_DIR', str(tmp_path))
+    monkeypatch.setattr(lumos, 'LIBRARY_DIR', '')
+    monkeypatch.setattr(lumos, 'session', lambda: Flaky())
+    monkeypatch.setattr(lumos.time, 'sleep', lambda s: None)
+    assert lumos.library_sets('LIB') == {'T1': {'A', 'B'}} and len(calls) == 3
+
+
 def test_library_shipped_with_the_image_is_used_first(tmp_path, monkeypatch):
     shipped = tmp_path / 'shipped'
     shipped.mkdir()
