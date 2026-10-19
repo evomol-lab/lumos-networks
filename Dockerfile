@@ -4,12 +4,12 @@
 # Image names are fully qualified so the same file builds with Docker and Podman.
 # Podman needs --format docker to keep the HEALTHCHECK (its default OCI format drops it).
 #
-#   podman build --format docker -t docker.io/evomol/lumos-networks:2.0.0 .
-#   podman run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.0.0                  # web interface
+#   podman build --format docker -t docker.io/evomol/lumos-networks:2.1.0 .
+#   podman run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.1.0                  # web interface
 #   docker run --rm --pull always -p 5070:5070 docker.io/evomol/lumos-networks:latest   # newest image at every start
-#   podman run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.0.0 \
+#   podman run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.1.0 \
 #       python /opt/lumos/lumos.py dataset --geo GSE117769 --outdir data            # command line
-#   podman run --rm docker.io/evomol/lumos-networks:2.0.0 \
+#   podman run --rm docker.io/evomol/lumos-networks:2.1.0 \
 #       python -m pytest -q /opt/lumos/tests                                        # tests
 
 ARG PYTHON_IMAGE=docker.io/library/python:3.11-slim-bookworm
@@ -24,7 +24,7 @@ RUN /opt/venv/bin/pip install --upgrade pip && \
 
 # ---- runtime
 FROM ${PYTHON_IMAGE}
-ARG VERSION=2.0.0
+ARG VERSION=2.1.0
 LABEL org.opencontainers.image.title="Lumos Networks" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.description="Transcriptomic analysis, functional context and prior-knowledge networks: web interface and command line, with limma (R) and PyDESeq2" \
