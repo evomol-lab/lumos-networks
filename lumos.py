@@ -50,12 +50,12 @@ from lumos_core import (__version__, align_named_contrasts, annotate_cross_datas
 APP_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 LIMMA_BACKEND = os.path.join(APP_DIR, 'r', 'limma_backend.R')
 CACHE_DIR = os.environ.get('LUMOS_CACHE_DIR') or os.path.join(tempfile.gettempdir(), 'lumos_cache')
+LIBRARY_DIR = os.environ.get('LUMOS_LIBRARY_DIR', '')     # read-only Enrichr libraries (the container image)
 USER_AGENT = f'LumosNetworks/{__version__} (EvoMol-Lab, BioME/UFRN; academic use)'
 GEO_FTP = 'https://ftp.ncbi.nlm.nih.gov/geo'
 MYGENE = 'https://mygene.info/v3/query'
 ENSEMBL_REST = 'https://rest.ensembl.org'
 ENRICHR = 'https://maayanlab.cloud/Enrichr'
-SPEEDRICHR = 'https://maayanlab.cloud/speedrichr/api'
 STRING_API = 'https://version-12-0.string-db.org/api'
 
 DEFAULT_PATHWAY_LIBRARIES = ('KEGG_2021_Human', 'GO_Biological_Process_2023')
@@ -1433,8 +1433,9 @@ def meta_expression_heatmap(analyses, profiles, genes):
     joined = pd.concat(blocks, axis=1, join='inner')
     if joined.empty:
         return None
+    z = joined.to_numpy()
     return {'genes': list(joined.index), 'samples': samples, 'groups': groups, 'studies': studies,
-            'z': [num_list(r, 3) for r in joined.to_numpy()]}
+            'z': [num_list(r, 3) for r in z], 'row_order': ward_order(z), 'col_order': ward_order(z.T)}
 
 
 def cmd_integrate(a):
@@ -1578,11 +1579,141 @@ def read_json_safe(path):
         return None
 
 
+# ---------------------------------------------------------------------------- imported result tables
+
+# Column names (lower case, letters and digits only) of differential-expression tables written by
+# Lumos, DESeq2, limma, edgeR and similar tools.
+SYMBOL_KEYS = ('symbol', 'genesymbol', 'gene', 'genename', 'hgncsymbol', 'externalgenename', 'mgisymbol')
+ID_KEYS = ('geneid', 'id', 'feature', 'ensemblid', 'ensembl', 'entrezid', 'probeid', 'unnamed0', 'x')
+EFFECT_KEYS = ('log2fc', 'log2foldchange', 'logfc', 'metalog2fc', 'log2ratio', 'effect')
+FDR_KEYS = ('fdr', 'padj', 'adjpval', 'adjustedpvalue', 'qvalue', 'fdradjusted', 'fdrbh', 'metafdr')
+
+
+def _key(column):
+    return re.sub(r'[^a-z0-9]', '', str(column).lower())
+
+
+def _first(df, keys):
+    by_key = {}
+    for c in df.columns:
+        by_key.setdefault(_key(c), c)
+    return next((by_key[k] for k in keys if k in by_key), None)
+
+
+def read_text_table(path):
+    """A delimited text table (CSV/TSV/whitespace, optionally gzipped) with its header, as text columns."""
+    name = os.path.basename(path)
+    with open(path, 'rb') as fh:
+        lines = [ln for ln in _decode(fh.read(), name).splitlines() if ln.strip() and not ln.lstrip().startswith('#')]
+    if len(lines) < 2:
+        raise LumosError(f'{name}: not a table (fewer than two lines).')
+    sep, _ = _sniff(lines)
+    try:
+        df = pd.read_csv(io.StringIO('\n'.join(lines)), sep=sep, dtype=str, keep_default_na=False,
+                         engine='python' if sep == r'\s+' else 'c')
+    except Exception as exc:
+        raise LumosError(f'{name}: could not read the table ({exc}).')
+    if not isinstance(df.index, pd.RangeIndex):   # R tables: one header name fewer than the columns
+        df = df.reset_index(names='gene_id')
+    df.columns = [str(c).strip() for c in df.columns]
+    return df
+
+
+def result_profiles(df, stem):
+    """(label, symbols, log2FC, FDR) of each effect in a result table: one for a single comparison (or a
+    meta-analysis), one per Log2FC_<x>/FDR_<x> pair for tables of several analyses."""
+    sym_col, id_col = _first(df, SYMBOL_KEYS), _first(df, ID_KEYS)
+    if not sym_col and not id_col:
+        raise LumosError(f'{stem}: no gene column (Symbol, Gene, gene_name, Gene_ID...).')
+    symbols = df[sym_col or id_col].astype(str).str.strip()
+    if sym_col and id_col:
+        symbols = symbols.where(~symbols.str.upper().isin(['', 'NA', 'NAN']), df[id_col].astype(str).str.strip())
+    effect, fdr = _first(df, EFFECT_KEYS), _first(df, FDR_KEYS)
+    if effect and fdr:
+        pairs = [(stem, effect, fdr)]
+    else:
+        pairs = [(f'{stem} · {c[7:]}', c, f'FDR_{c[7:]}') for c in df.columns
+                 if c.startswith('Log2FC_') and f'FDR_{c[7:]}' in df.columns]
+    if not pairs:
+        raise LumosError(f'{stem}: no log2 fold-change and adjusted p-value columns (e.g. Log2FC, log2FoldChange '
+                         'or logFC, and FDR, padj or adj.P.Val).')
+    return [(label, symbols, pd.to_numeric(df[e], errors='coerce'), pd.to_numeric(df[f], errors='coerce'))
+            for label, e, f in pairs]
+
+
+def cmd_import(a):
+    """Differential-expression results computed elsewhere (or exported by Lumos) as gene sources of the APP."""
+    profiles, merged, used = [], None, set()
+    for k, path in enumerate(a.tables):
+        stem = file_stem(os.path.basename(path))
+        progress(0.1 + 0.8 * k / len(a.tables), f'Reading {stem}')
+        for label, symbols, lfc, fdr in result_profiles(read_text_table(path), stem):
+            frame = collapse_symbol_results(pd.DataFrame({'Symbol': symbols.str.upper(), 'Log2FC': lfc, 'FDR': fdr}),
+                                            ('Log2FC', 'FDR')).dropna(subset=['FDR'])
+            if frame.empty:
+                say(f'{label}: no gene with an adjusted p-value; skipped.')
+                continue
+            pid, n = sanitize_design_name(label), 2
+            while pid in used:
+                pid, n = f'{sanitize_design_name(label)}_{n}', n + 1
+            used.add(pid)
+            sig = int(((frame['FDR'] < a.fdr) & (frame['Log2FC'].abs() >= a.lfc)).sum())
+            say(f'{label}: {len(frame)} genes, {sig} with FDR < {a.fdr:g} and |log2FC| >= {a.lfc:g}.')
+            profiles.append({'id': pid, 'label': label, 'file': os.path.basename(path), 'genes': len(frame),
+                             'significant': sig})
+            frame = frame.rename(columns={'Log2FC': f'Log2FC_{pid}', 'FDR': f'FDR_{pid}'})
+            merged = frame if merged is None else merged.merge(frame, on='Symbol', how='outer')
+    if not profiles:
+        raise LumosError('No result table could be used.')
+    merged.to_csv(os.path.join(a.outdir, 'results.csv'), index=False, float_format='%.6g')
+    names = list(dict.fromkeys(file_stem(os.path.basename(p)) for p in a.tables))
+    summary = {'kind': 'results', 'version': __version__, 'name': ' + '.join(names)[:120], 'profiles': profiles,
+               'thresholds': {'fdr': a.fdr, 'lfc': a.lfc}, 'files': {'table': 'results.csv'},
+               'table': {'symbol': list(merged['Symbol']),
+                         'profiles': {p['id']: {'lfc': num_list(merged[f'Log2FC_{p["id"]}']),
+                                                'fdr': num_list(merged[f'FDR_{p["id"]}'])} for p in profiles}}}
+    write_json(os.path.join(a.outdir, 'summary.json'), summary)
+    progress(1.0, 'Done')
+
+
+def uploaded_regulators(path, lists):
+    """Regulator -> target table supplied by the user (TRRUST/JASPAR exports, curated lists...): one entry per
+    regulator and gene list, with the targets among the queried genes, like the Enrichr regulator terms."""
+    name = file_stem(os.path.basename(path))
+    df = read_text_table(path)
+    tf_col = _first(df, ('tfsymbol', 'tfname', 'tf', 'regulator', 'transcriptionfactor', 'source'))
+    target_col = _first(df, ('targets', 'genes', 'targetgene', 'target', 'targetsymbol'))
+    if not tf_col or not target_col:
+        raise LumosError(f'{name}: a regulator table needs a TF column (TF, TF_Symbol, TF_Name) and a target column '
+                         '(Target, Target_Gene, Genes or Targets; several targets separated by ";").')
+    fdr_col = _first(df, FDR_KEYS)
+    rows = pd.DataFrame({'TF': df[tf_col].map(tf_symbol),
+                         'Target': df[target_col].astype(str).str.upper().str.split(r'[;,|\s]+'),
+                         'FDR': pd.to_numeric(df[fdr_col], errors='coerce') if fdr_col else np.nan}).explode('Target')
+    rows = rows[(rows['TF'] != '') & (rows['Target'].fillna('') != '')]
+    library = f'{name} (uploaded)'
+    entries = []
+    for tf, grp in rows.groupby('TF', sort=False):
+        targets = set(grp['Target'])
+        fdr = fnum(grp['FDR'].min())
+        for direction, genes in lists.items():
+            hit = sorted(targets & set(genes))
+            if hit:
+                entries.append({'tf': tf, 'term': f'{tf} ({name})', 'library': library, 'direction': direction,
+                                'p': None, 'fdr': fdr, 'targets': hit, 'uploaded': True})
+    say(f'{library}: {rows["TF"].nunique()} regulators, {len({e["tf"] for e in entries})} with targets among the '
+        'queried genes' + ('.' if fdr_col else ' (no adjusted p-value column: interactions used as given).'))
+    return entries
+
+
 # ---------------------------------------------------------------------------- enrichment (APP)
 
 def tf_symbol(term):
     """TF name of an Enrichr regulator term: 'TP53 human' -> TP53, 'RELA 24523406 ChIP-Seq...' -> RELA."""
     return re.split(r'[\s_]', str(term).strip())[0].upper()
+
+
+ORA_ENGINE = 'hypergeometric test (Enrichr library, annotated background)'
 
 
 def _cloudscraper():
@@ -1595,22 +1726,32 @@ def _cloudscraper():
 
 
 def library_sets(name):
-    """Gene sets of an Enrichr library (cached on disk for 30 days)."""
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    path = os.path.join(CACHE_DIR, f'enrichr_{safe_name(name)}.txt')
-    if not os.path.exists(path) or time.time() - os.path.getmtime(path) > 30 * 86400:
-        say(f'Downloading the {name} library from Enrichr')
-        r = session().get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name}, timeout=300)
-        if r.status_code == 403:
-            s = _cloudscraper()
-            if s:
-                r = s.get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name}, timeout=300)
-        r.raise_for_status()
-        with open(path + '.tmp', 'w') as fh:
-            fh.write(r.text)
-        os.replace(path + '.tmp', path)
+    """Gene sets of an Enrichr library: the copy shipped in LUMOS_LIBRARY_DIR (container image), else a
+    download cached for 30 days (the cached copy is kept when Enrichr cannot be reached)."""
+    file = f'enrichr_{safe_name(name)}.txt'
+    path = os.path.join(LIBRARY_DIR, file) if LIBRARY_DIR else ''
+    if not os.path.exists(path):
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        path = os.path.join(CACHE_DIR, file)
+        if not os.path.exists(path) or time.time() - os.path.getmtime(path) > 30 * 86400:
+            say(f'Downloading the {name} library from Enrichr')
+            try:
+                r = session().get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name}, timeout=300)
+                if r.status_code == 403:
+                    s = _cloudscraper()
+                    if s:
+                        r = s.get(f'{ENRICHR}/geneSetLibrary', params={'mode': 'text', 'libraryName': name},
+                                  timeout=300)
+                r.raise_for_status()
+                with open(path + '.tmp', 'w', encoding='utf-8') as fh:
+                    fh.write(r.text)
+                os.replace(path + '.tmp', path)
+            except Exception as exc:
+                if not os.path.exists(path):
+                    raise
+                say(f'{name}: Enrichr could not be reached ({exc}); the cached copy of the library is used.')
     sets = {}
-    with open(path) as fh:
+    with open(path, encoding='utf-8', errors='replace') as fh:
         for line in fh:
             parts = line.rstrip('\n').split('\t')
             if len(parts) < 3:
@@ -1624,78 +1765,44 @@ def library_sets(name):
 
 
 class ORA:
-    """Over-representation analysis against an explicit background: Speedrichr first, then a local
-    one-sided hypergeometric test on the same Enrichr library (Benjamini-Hochberg within library)."""
+    """Over-representation analysis against an explicit background, computed locally on the Enrichr
+    libraries so that the result is the same wherever Lumos runs (no dependence on Enrichr accepting the
+    server's address): one-sided hypergeometric test with the universe restricted to the background genes
+    annotated in the library, and Benjamini-Hochberg over the tested terms, those with at least one query
+    gene (the conventions of clusterProfiler)."""
 
     def __init__(self, background):
         self.background = sorted({str(g).strip().upper() for g in background if str(g).strip()})
-        self.speed = True
-        self.bg_id = None
-        self.list_ids = {}
         self.diagnostics = []
 
-    def _speed_post(self, path, **kw):
-        r = session().post(f'{SPEEDRICHR}/{path}', timeout=(10, 60), **kw)
-        if r.status_code == 403:
-            s = _cloudscraper()
-            if s:
-                r = s.post(f'{SPEEDRICHR}/{path}', timeout=(10, 60), **kw)
-        r.raise_for_status()
-        return r.json()
-
-    def _speedrichr(self, query, library):
-        if self.bg_id is None:
-            self.bg_id = self._speed_post('addbackground', data={'background': '\n'.join(self.background)})['backgroundid']
-        key = tuple(query)
-        if key not in self.list_ids:
-            self.list_ids[key] = self._speed_post('addList', files={
-                'list': (None, '\n'.join(query)), 'description': (None, 'Lumos Networks')})['userListId']
-        data = self._speed_post('backgroundenrich', data={'userListId': self.list_ids[key],
-                                                          'backgroundid': self.bg_id, 'backgroundType': library})
-        rows = data.get(library, [])
-        return pd.DataFrame([{'Term': r[1], 'PValue': r[2], 'OddsRatio': r[3], 'CombinedScore': r[4],
-                              'Genes': [str(g).upper() for g in r[5]], 'FDR': r[6]} for r in rows])
-
-    def _local(self, query, library):
+    def _hypergeometric(self, query, library):
         from scipy import stats
         sets = library_sets(library)
         universe = set(self.background) & set().union(*sets.values())
         q = set(query) & universe
         if not q or len(universe) < 2:
-            return pd.DataFrame()
+            return pd.DataFrame(), len(universe)
         n_pop, n_q, rows = len(universe), len(q), []
         for term, genes in sets.items():
-            tb = universe & genes
-            if not tb:
+            ov = sorted(q & genes)
+            if not ov:
                 continue
-            ov = sorted(q & tb)
-            k, m = len(ov), len(tb)
-            p = float(stats.hypergeom.sf(k - 1, n_pop, m, n_q)) if k else 1.0
+            k, m = len(ov), len(universe & genes)
+            p = float(stats.hypergeom.sf(k - 1, n_pop, m, n_q))
             odds = (k + 0.5) * (n_pop - m - n_q + k + 0.5) / ((n_q - k + 0.5) * (m - k + 0.5))
             rows.append({'Term': term, 'PValue': p, 'OddsRatio': odds, 'CombinedScore': np.nan, 'Genes': ov})
         df = pd.DataFrame(rows)
-        if df.empty:
-            return df
-        df['FDR'] = benjamini_hochberg(df['PValue'].to_numpy())
-        return df[df['Genes'].map(bool)]
+        if not df.empty:
+            df['FDR'] = benjamini_hochberg(df['PValue'].to_numpy())
+        return df, len(universe)
 
     def run(self, genes, library):
         query, background, excluded = prepare_ora_inputs(genes, self.background)
-        df, engine = pd.DataFrame(), None
-        if self.speed:
-            try:
-                df, engine = self._speedrichr(query, library), 'Speedrichr (explicit background)'
-            except Exception as exc:
-                self.speed = False
-                self.diagnostics.append(f'Speedrichr unavailable ({type(exc).__name__}: {exc}); the local '
-                                        'hypergeometric test on the Enrichr libraries was used.')
-                say(self.diagnostics[-1])
-        if engine is None:
-            df = self._local(query, library)
-            engine = 'local hypergeometric test (Enrichr library, explicit background)'
+        df, universe = self._hypergeometric(query, library)
         if not df.empty:
             df['Overlap'] = df['Genes'].map(len)
-        return df, engine, {'query': len(query), 'background': len(background), 'excluded': len(excluded)}
+        return df, ORA_ENGINE, {'query': len(query), 'background': len(background), 'excluded': len(excluded),
+                                'annotated': universe}
 
 
 def source_evidence(src_dir, focus, fdr, lfc):
@@ -1707,8 +1814,19 @@ def source_evidence(src_dir, focus, fdr, lfc):
         ev = c.rename(columns={'Log2FC': 'Effect'})[['Symbol', 'Effect', 'FDR']]
         return ev, list(c['Symbol']), {'kind': 'de', 'label': s['label'], 'dataset': s['name'],
                                        'comparison': s['comparison']}, s
+    if s['kind'] == 'results':
+        pid = focus.split(':', 1)[1] if focus.startswith('profile:') else s['profiles'][0]['id']
+        label = next((p['label'] for p in s['profiles'] if p['id'] == pid), None)
+        if label is None:
+            raise LumosError(f'Unknown profile {pid}.')
+        table = pd.read_csv(os.path.join(src_dir, 'results.csv'), dtype={'Symbol': str}, keep_default_na=False,
+                            na_values=[''])
+        ev = table[['Symbol', f'Log2FC_{pid}', f'FDR_{pid}']].rename(
+            columns={f'Log2FC_{pid}': 'Effect', f'FDR_{pid}': 'FDR'}).dropna()
+        return ev, list(ev['Symbol']), {'kind': 'results', 'label': f'imported table {label}'}, s
     if s['kind'] != 'integrate':
-        raise LumosError('The gene source must be a differential-expression analysis or an integration.')
+        raise LumosError('The gene source must be a differential-expression analysis, an integration or an '
+                         'imported result table.')
     table = pd.read_csv(os.path.join(src_dir, 'integration.csv'))
     table['Symbol'] = table['Symbol'].astype(str).str.upper()
     ids = [p['id'] for p in s['profiles']]
@@ -1767,7 +1885,7 @@ def cmd_enrich(a):
     results, regulators, sizes = [], [], {}
     for i, (lib, role) in enumerate(all_libs):
         progress(0.1 + 0.8 * i / len(all_libs), f'Enrichment: {lib}')
-        frames, engines = [], set()
+        frames, engines, universe = [], set(), None
         for direction, genes in lists.items():
             try:
                 df, engine, size = ora.run(genes, lib)
@@ -1776,7 +1894,8 @@ def cmd_enrich(a):
                 continue
             except Exception as exc:
                 raise LumosError(f'{lib}: {exc}')
-            sizes[direction] = size
+            sizes[direction] = {k: v for k, v in size.items() if k != 'annotated'}
+            universe = size['annotated']
             engines.add(engine)
             if not df.empty:
                 frames.append(df.assign(Direction=direction))
@@ -1794,13 +1913,16 @@ def cmd_enrich(a):
         if not df.empty:
             df.assign(Genes=df['Genes'].apply(';'.join), Library=lib, Engine='; '.join(sorted(engines))).to_csv(
                 os.path.join(out, fname), index=False, float_format='%.6g')
-        entry = {'name': lib, 'role': role, 'engine': '; '.join(sorted(engines)), 'n_terms': int(len(df)),
+        entry = {'name': lib, 'role': role, 'engine': '; '.join(sorted(engines)), 'universe': universe, 'n_terms': int(len(df)),
                  'n_significant': n_sig, 'file': fname if not df.empty else None, 'terms': terms_rows(df.head(TOP_TERMS))}
         if role == 'tf' and not df.empty:
             for r in df.itertuples():
                 regulators.append({'tf': tf_symbol(r.Term), 'term': r.Term, 'library': lib, 'direction': r.Direction,
                                    'p': fnum(r.PValue), 'fdr': fnum(r.FDR), 'targets': list(r.Genes)})
         results.append(entry)
+    for path in a.regulator_tables:
+        progress(0.92, f'Regulator table {os.path.basename(path)}')
+        regulators += uploaded_regulators(path, lists)
     regulators.sort(key=lambda r: (r['fdr'] if r['fdr'] is not None else 1.0))
     if regulators:
         pd.DataFrame([{**r, 'targets': ';'.join(r['targets'])} for r in regulators]).rename(columns={
@@ -1826,8 +1948,8 @@ def cmd_enrich(a):
                 'strategy': a.strategy, 'thresholds': {'FDR': a.fdr, 'absolute_log2FC': a.lfc},
                 'up_regulated_genes': up, 'down_regulated_genes': down,
                 'background': {'source': background_text, 'size': len(ora.background)},
-                'libraries': [{'name': e['name'], 'role': e['role'], 'engine': e['engine'], 'terms': e['n_terms']}
-                              for e in results],
+                'libraries': [{'name': e['name'], 'role': e['role'], 'engine': e['engine'], 'universe': e['universe'],
+                               'terms': e['n_terms']} for e in results],
                 'non_human_terms_removed': not a.keep_nonhuman, 'diagnostics': ora.diagnostics,
                 'runtime': runtime_info(('cloudscraper',))}
     write_json(os.path.join(out, 'summary.json'), summary)
@@ -1879,6 +2001,11 @@ def string_network(genes, species=9606, score=400, network_type='functional'):
 
 # ---------------------------------------------------------------------------- PrioriGraph (on demand)
 
+def regulator_passes(r, tf_fdr):
+    """Enrichr regulator terms pass by FDR; uploaded interactions without a p-value are used as given."""
+    return (r['fdr'] is not None and r['fdr'] <= tf_fdr) or bool(r.get('uploaded') and r['fdr'] is None)
+
+
 def _pg_inputs(enrich_dir, n_terms, term_fdr, tf_fdr):
     s = read_json(os.path.join(enrich_dir, 'summary.json'))
     if not s.get('regulators'):
@@ -1900,8 +2027,7 @@ def _pg_inputs(enrich_dir, n_terms, term_fdr, tf_fdr):
                 cur['fdr'] = min(cur['fdr'], t['fdr'])
     terms = sorted(best.values(), key=lambda t: t['fdr'])[:n_terms]
     rows = [{'TF': r['tf'], 'Target': g, 'Library': r['library'], 'Direction': r['direction'], 'Term': r['term'],
-             'FDR': r['fdr']} for r in s['regulators'] if r['fdr'] is not None and r['fdr'] <= tf_fdr
-            for g in r['targets']]
+             'FDR': r['fdr']} for r in s['regulators'] if regulator_passes(r, tf_fdr) for g in r['targets']]
     reg = pd.DataFrame(rows, columns=['TF', 'Target', 'Library', 'Direction', 'Term', 'FDR'])
     reg = reg.sort_values('FDR').drop_duplicates(['TF', 'Target', 'Library', 'Direction'])
     ev = pd.read_csv(os.path.join(enrich_dir, 'evidence.csv'))
@@ -1939,6 +2065,7 @@ PG_THRESHOLDS = (0.01, 0.05, 0.1, 0.25, 1.0)
 def pg_diagnostics(s, term_fdr, tf_fdr):
     """How many terms and regulators pass each FDR threshold, to explain (and fix) an empty network."""
     regs = [r for r in s.get('regulators', []) if r['fdr'] is not None]
+    given = {r['tf'] for r in s.get('regulators', []) if r.get('uploaded') and r['fdr'] is None}   # no p-value
     terms = {}
     for lib in s['libraries']:
         if lib['role'] == 'pathway':
@@ -1947,11 +2074,11 @@ def pg_diagnostics(s, term_fdr, tf_fdr):
                     terms[t['term']] = min(t['fdr'], terms.get(t['term'], 1.0))
     best = min(regs, key=lambda r: r['fdr']) if regs else None
     return {'thresholds': list(PG_THRESHOLDS),
-            'regulator_counts': [len({r['tf'] for r in regs if r['fdr'] <= t}) for t in PG_THRESHOLDS],
+            'regulator_counts': [len({r['tf'] for r in regs if r['fdr'] <= t} | given) for t in PG_THRESHOLDS],
             'term_counts': [sum(1 for f in terms.values() if f <= t) for t in PG_THRESHOLDS],
             'best_regulator': {'tf': best['tf'], 'library': best['library'], 'fdr': fnum(best['fdr'])} if best else None,
             'best_term_fdr': fnum(min(terms.values())) if terms else None,
-            'regulators_passing': len({r['tf'] for r in regs if r['fdr'] <= tf_fdr}),
+            'regulators_passing': len({r['tf'] for r in regs if r['fdr'] <= tf_fdr} | given),
             'terms_passing': sum(1 for f in terms.values() if f <= term_fdr)}
 
 
@@ -2056,8 +2183,8 @@ def sensitivity(enrich_dir, tf_fdr=0.05, fdrs=(0.01, 0.05, 0.10), effects=(0.5, 
                 restarts=(0.5, 0.7, 0.9), decays=(0.25, 0.5, 0.75), top_k=20):
     """Stability of the network rankings over a grid of selection and propagation parameters."""
     s = read_json(os.path.join(enrich_dir, 'summary.json'))
-    rows = [{'TF': r['tf'], 'Target': g} for r in s.get('regulators', [])
-            if r['fdr'] is not None and r['fdr'] <= tf_fdr for g in r['targets']]
+    rows = [{'TF': r['tf'], 'Target': g} for r in s.get('regulators', []) if regulator_passes(r, tf_fdr)
+            for g in r['targets']]
     if not rows:
         raise LumosError('No regulator passes the regulator FDR threshold.')
     ev = pd.read_csv(os.path.join(enrich_dir, 'evidence.csv'))
@@ -2073,26 +2200,32 @@ def sensitivity(enrich_dir, tf_fdr=0.05, fdrs=(0.01, 0.05, 0.10), effects=(0.5, 
             'TopK_Frequency': 'topk', 'Median_RWR_Rank': 'median_rank', 'IQR_RWR_Rank': 'iqr_rank',
             'Mean_RWR_Score': 'mean_score', 'SD_RWR_Score': 'sd_score', 'Median_Linear_Propagation': 'median_linear'}
     out = [{v: (r[k] if k == 'Node' else fnum(r[k])) for k, v in cols.items()} for _, r in summary.iterrows()]
-    return {'configurations': int(rankings['Configuration'].nunique()), 'rows': out}
+    name = 'sensitivity_configurations.csv'          # every configuration, for download
+    rankings.to_csv(os.path.join(enrich_dir, name + '.tmp'), index=False, float_format='%.6g')
+    os.replace(os.path.join(enrich_dir, name + '.tmp'), os.path.join(enrich_dir, name))
+    return {'configurations': int(rankings['Configuration'].nunique()), 'rows': out, 'file': name}
+
+
+def ward_order(z):
+    """Leaf order of a Ward clustering of the rows of a z-score matrix (missing values as 0)."""
+    from scipy.cluster import hierarchy
+    from scipy.spatial import distance
+    z = np.nan_to_num(np.asarray(z, dtype=float))
+    if z.shape[0] <= 2:
+        return list(range(z.shape[0]))
+    return [int(i) for i in hierarchy.leaves_list(hierarchy.linkage(distance.pdist(z), method='ward'))]
 
 
 def cluster_order(de_dir, gene_ids, rows=True, cols=False):
     """Ward ordering of heatmap rows (genes) and columns (samples) on row z-scores."""
-    from scipy.cluster import hierarchy
-    from scipy.spatial import distance
     s = read_json(os.path.join(de_dir, 'summary.json'))
     idx = {g: k for k, g in enumerate(s['heatmap']['genes'])}
     m = np.array([[np.nan if v is None else v for v in s['heatmap']['values'][idx[g]]] for g in gene_ids if g in idx])
     if m.ndim != 2 or m.shape[0] == 0:
         return {'rows': [], 'cols': []}
     z = (m - np.nanmean(m, axis=1, keepdims=True)) / (np.nanstd(m, axis=1, keepdims=True) + 1e-9)
-    z = np.nan_to_num(z)
-    order_r = list(range(z.shape[0]))
-    order_c = list(range(z.shape[1]))
-    if rows and z.shape[0] > 2:
-        order_r = [int(i) for i in hierarchy.leaves_list(hierarchy.linkage(distance.pdist(z), method='ward'))]
-    if cols and z.shape[1] > 2:
-        order_c = [int(i) for i in hierarchy.leaves_list(hierarchy.linkage(distance.pdist(z.T), method='ward'))]
+    order_r = ward_order(z) if rows else list(range(z.shape[0]))
+    order_c = ward_order(z.T) if cols else list(range(z.shape[1]))
     kept = [g for g in gene_ids if g in idx]
     return {'rows': [kept[i] for i in order_r], 'cols': order_c}
 
@@ -2106,7 +2239,8 @@ REPORT_MODULES = {
     'Integration': ('ddea-icon.png', 'Lumos Networks integration of analyses &mdash; EvoMol-Lab, BioME, UFRN.<br>'
                     'Random-effects meta-analysis: statsmodels (Seabold &amp; Perktold, 2010).'),
     'APP': ('app-icon.png', 'Arithmancy Pathway Profiler (APP) &mdash; EvoMol-Lab, BioME, UFRN.<br>Enrichment: '
-            'Enrichr/Speedrichr (Xie et al., 2021). Protein associations: STRING v12 (Szklarczyk et al., 2023).'),
+            'Enrichr libraries (Xie et al., 2021), hypergeometric test. Protein associations: STRING v12 (Szklarczyk '
+            'et al., 2023).'),
     'PG': ('pg-icon.png', 'PrioriGraph (PG) &mdash; EvoMol-Lab, BioME, UFRN.<br>Network metrics: NetworkX (Hagberg '
            'et al., 2008). Regulators: TRRUST (Han et al., 2018) / JASPAR via Enrichr. Propagation: RWR (Köhler et '
            'al., 2008).'),
@@ -2207,7 +2341,16 @@ def build_parser():
     n.add_argument('--fdr', type=float, default=0.05, help='threshold of the consistent signature')
     n.add_argument('--lfc', type=float, default=1.0, help='threshold of the consistent signature')
     n.add_argument('--keep-nonhuman', action='store_true', help='keep mouse/rat terms')
+    n.add_argument('--regulator-tables', nargs='*', default=[],
+                   help='your own regulator -> target tables (TF and Target/Genes columns), used with the libraries')
     n.add_argument('--outdir', required=True)
+
+    m = sub.add_parser('import', help='differential-expression result tables computed elsewhere, as APP gene sources')
+    m.add_argument('--tables', nargs='+', required=True,
+                   help='CSV/TSV with a gene column, log2 fold change and adjusted p-value (or Lumos exports)')
+    m.add_argument('--fdr', type=float, default=0.05, help='threshold for the counts in the log')
+    m.add_argument('--lfc', type=float, default=1.0, help='threshold for the counts in the log')
+    m.add_argument('--outdir', required=True)
     return p
 
 
@@ -2217,7 +2360,8 @@ def main(argv=None):
     status = os.path.join(a.outdir, 'status.json')
     say(f'Lumos Networks {__version__}: {a.command}')
     try:
-        {'dataset': cmd_dataset, 'de': cmd_de, 'integrate': cmd_integrate, 'enrich': cmd_enrich}[a.command](a)
+        {'dataset': cmd_dataset, 'de': cmd_de, 'integrate': cmd_integrate, 'enrich': cmd_enrich,
+         'import': cmd_import}[a.command](a)
         write_json(status, {'state': 'done'})
         return 0
     except LumosError as exc:
