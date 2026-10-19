@@ -1153,9 +1153,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const plotted = new Set();
     function show(id, fig) {
-        if (fig.height) $(id).style.height = `${fig.height}px`;
-        Plotly.react(id, fig.data, fig.layout, PLOT_CONFIG);
-        plotted.add(id);
+        const el = $(id);
+        if (!el) return;
+        if (!window.Plotly) {
+            el.textContent = 'Chart library unavailable. Check /static/vendor/plotly.min.js.';
+            console.error('Lumos: Plotly did not load for', id);
+            return;
+        }
+        try {
+            if (fig.height) el.style.height = `${fig.height}px`;
+            Promise.resolve(Plotly.react(el, fig.data, fig.layout, PLOT_CONFIG)).catch((e) => {
+                console.error('Lumos chart failed:', id, e);
+                el.textContent = `Chart rendering failed: ${e.message}`;
+            });
+            plotted.add(id);
+        } catch (e) {
+            console.error('Lumos chart failed:', id, e);
+            el.textContent = `Chart rendering failed: ${e.message}`;
+        }
     }
 
     function resizeAll() {
@@ -1190,7 +1205,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     `${int(s.symbols.mapped)} of ${int(s.symbols.total)} from ${esc(s.symbols.source)}`)
                 : '');
         $('de-notes').innerHTML = (s.notes || []).map((n) => `<li>${esc(n)}</li>`).join('');
-        renderDECharts();
+        try { renderDECharts(); }
+        catch (e) { console.error('Lumos DDEA visualization error:', e); showError(`Visualization error: ${e.message}`, $('error-message')); }
         degTable.render();
     }
 
@@ -1460,6 +1476,24 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(resizeAll, 30);
         if (name === 'pg' && state.pgNet) setTimeout(() => state.pgNet.fit(), 60);
     }
+    $('de-to-app').addEventListener('click', () => {
+        if (!state.deJob || !state.analyses.has(state.deJob)) {
+            return showError('Finish a DDEA analysis before opening APP.');
+        }
+        renderAppSources();
+        const value = `de|${state.deJob}|analysis`;
+        const selector = $('app-source');
+        if ([...selector.options].some((o) => o.value === value)) {
+            selector.value = value;
+            buildAppSource(true);
+        }
+        switchTab('app');
+        if (!state.appSource || !state.appSource.rows.length) {
+            showError('No differentially expressed genes meet the APP filters. Review FDR and |log2FC|, or test another comparison.', $('app-error'));
+        } else {
+            showError('', $('app-error'));
+        }
+    });
     const activeTab = () => document.querySelector('.tab-btn.active').dataset.tab;
     document.querySelectorAll('.tab-btn').forEach((b) => b.addEventListener('click', () => {
         if (!b.disabled) switchTab(b.dataset.tab);
