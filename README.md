@@ -398,32 +398,37 @@ Federal University of Rio Grande do Norte (UFRN), Natal, Brazil.
 
 ## 📚 Core references
 
+- Benjamini Y, Hochberg Y. Controlling the false discovery rate: a practical and
+  powerful approach to multiple testing. Journal of the Royal Statistical Society:
+  Series B. 1995;57(1):289-300. <https://doi.org/10.1111/j.2517-6161.1995.tb02031.x>
+- Hagberg AA, Schult DA, Swart PJ. Exploring network structure, dynamics, and function
+  using NetworkX. In: Varoquaux G, Vaught T, Millman J, editors. Proceedings of the 7th
+  Python in Science Conference (SciPy 2008). Pasadena, CA; 2008. p. 11-15.
+  <https://doi.org/10.25080/TCWV9851>
+- Han H, et al. TRRUST v2: an expanded reference database of human and mouse
+  transcriptional regulatory interactions. *Nucleic Acids Research*.
+  2018;46(D1):D380-D386. <https://doi.org/10.1093/nar/gkx1013>
 - Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion
   for RNA-seq data with DESeq2. *Genome Biology*. 2014;15:550.
   <https://doi.org/10.1186/s13059-014-0550-8>
 - Muzellec B, et al. PyDESeq2: a Python package for bulk RNA-seq differential
   expression analysis. *Bioinformatics*. 2023;39(9):btad547.
   <https://doi.org/10.1093/bioinformatics/btad547>
+- Rauluseviciute I, et al. JASPAR 2024: 20th anniversary of the open-access database
+  of transcription factor binding profiles. Nucleic Acids Research. 2024;52(D1):D174-D182.
+  <https://doi.org/10.1093/nar/gkad1059>
 - Ritchie ME, et al. limma powers differential expression analyses for
   RNA-sequencing and microarray studies. *Nucleic Acids Research*. 2015;43(7):e47.
   <https://doi.org/10.1093/nar/gkv007>
-- Xie Z, et al. Gene Set Knowledge Discovery with Enrichr. *Current Protocols*.
-  2021;1:e90. <https://doi.org/10.1002/cpz1.90>
 - Szklarczyk D, et al. The STRING database in 2023: protein-protein association
   networks and functional enrichment analyses for any sequenced genome of
   interest. *Nucleic Acids Research*. 2023;51(D1):D638-D646.
   <https://doi.org/10.1093/nar/gkac1000>
-- Fornes O, et al. JASPAR 2020: update of the open-access database of
-  transcription factor binding profiles. *Nucleic Acids Research*.
-  2020;48(D1):D87-D92. <https://doi.org/10.1093/nar/gkz1001>
-- Han H, et al. TRRUST v2: an expanded reference database of human and mouse
-  transcriptional regulatory interactions. *Nucleic Acids Research*.
-  2018;46(D1):D380-D386. <https://doi.org/10.1093/nar/gkx1013>
+- Xie Z, et al. Gene Set Knowledge Discovery with Enrichr. *Current Protocols*.
+  2021;1:e90. <https://doi.org/10.1002/cpz1.90>
 - Wu C, MacLeod I, Su AI. BioGPS and MyGene.info: organizing online, gene-centric
   information. *Nucleic Acids Research*. 2013;41(D1):D561-D565.
   <https://doi.org/10.1093/nar/gks1114>
-- Hagberg AA, Schult DA, Swart PJ. Exploring network structure, dynamics, and
-  function using NetworkX. *Proceedings of SciPy 2008*. 2008:11-15.
 
 <a id="license-release-and-doi"></a>
 
