@@ -39,6 +39,10 @@ JOB_ID = re.compile(r'^[0-9a-f]{12}$')
 LIBRARY = re.compile(r'^[A-Za-z0-9_.\-]{1,80}$')
 GENE = re.compile(r'[^A-Za-z0-9_.\-:@/]')
 PROCS = {}   # job id -> subprocess.Popen
+QUEUE = []   # job ids waiting for a free calculation slot, oldest first
+# Each DESeq2 job already uses every core; running many at once only exhausts the memory.
+MAX_JOBS = max(1, int(os.environ.get('LUMOS_MAX_JOBS', '2')))
+_SLOTS = threading.BoundedSemaphore(MAX_JOBS)
 _LIBRARIES = {'time': 0, 'names': None}
 UPDATE = {}   # newer image on Docker Hub, found at start-up (LUMOS_UPDATE_CHECK=1, set in the image)
 _LOCK = threading.Lock()
@@ -105,11 +109,17 @@ def number(form, key, cast, default, lo, hi):
         return default
     try:
         value = cast(raw)
-    except ValueError:
+    except (TypeError, ValueError):
         raise ValueError(f'Invalid value for {key}: {raw}')
     if not lo <= value <= hi:
         raise ValueError(f'{key} must be between {lo} and {hi}.')
     return value
+
+
+def json_body():
+    """The request's JSON object; anything else (list, string, number, invalid JSON) counts as empty."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
 
 
 def choice(form, key, allowed, default):
@@ -172,6 +182,9 @@ def de_arguments(form, inputs):
     with open(os.path.join(ds, 'summary.json')) as fh:
         columns = set(json.load(fh)['samples']['columns'])
     design = json.loads(form.get('design', '{}') or '{}')
+    if not isinstance(design, dict) or not all(isinstance(design.get(k) or [], list)
+                                               for k in ('covariates', 'continuous')):
+        raise ValueError('The design could not be read.')
 
     def column(value):
         value = str(value or '').strip()
@@ -323,29 +336,44 @@ def submit():
         cmd = [sys.executable, '--run-lumos', action] + args + ['--outdir', path]
     else:
         cmd = [sys.executable, os.path.join(APP_ROOT, 'lumos.py'), action] + args + ['--outdir', path]
-    log = open(os.path.join(path, 'run.log'), 'w')
-    env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONIOENCODING='utf-8', MPLBACKEND='Agg')
-    PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=path, env=env)
-    log.close()
+    with _LOCK:
+        QUEUE.append(job_id)
+    threading.Thread(target=run_when_free, args=(job_id, cmd, path), daemon=True).start()
     return jsonify({'job': job_id})
+
+
+def run_when_free(job_id, cmd, path):
+    """Start the job's subprocess once one of the MAX_JOBS slots is free and hold the slot until it ends."""
+    with _SLOTS:
+        env = dict(os.environ, PYTHONUNBUFFERED='1', PYTHONIOENCODING='utf-8', MPLBACKEND='Agg')
+        with _LOCK:      # dequeue and start atomically, so status and cancel never see a job in between
+            QUEUE.remove(job_id)
+            if os.path.exists(os.path.join(path, 'cancelled')):
+                return
+            with open(os.path.join(path, 'run.log'), 'w') as log:
+                proc = PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=path, env=env)
+        proc.wait()
 
 
 @app.route('/api/jobs/<job_id>')
 def job_status(job_id):
     path = job_dir(job_id)
-    proc = PROCS.get(job_id)
+    with _LOCK:
+        proc = PROCS.get(job_id)
+        ahead = QUEUE.index(job_id) if job_id in QUEUE else None
     status_file = os.path.join(path, 'status.json')
-    state, error = 'running', None
+    state, error, message = 'running', None, ''
     if os.path.exists(status_file):
         with open(status_file) as fh:
             st = json.load(fh)
         state, error = st['state'], st.get('error')
+    elif os.path.exists(os.path.join(path, 'cancelled')) and (proc is None or proc.poll() is not None):
+        state = 'cancelled'
+    elif ahead is not None:
+        message = f'Queued: {MAX_JOBS} calculation(s) already running, {ahead} more waiting before this one'
     elif proc is None or proc.poll() is not None:
-        if os.path.exists(os.path.join(path, 'cancelled')):
-            state = 'cancelled'
-        else:
-            state, error = 'failed', 'The calculation stopped unexpectedly (see the log).'
-    lines, prog, message = [], 0.0, ''
+        state, error = 'failed', 'The calculation stopped unexpectedly (see the log).'
+    lines, prog = [], 0.0
     log_path = os.path.join(path, 'run.log')
     if os.path.exists(log_path):
         with open(log_path, encoding='utf-8', errors='replace') as fh:
@@ -368,9 +396,11 @@ def job_status(job_id):
 @app.route('/api/jobs/<job_id>/cancel', methods=['POST'])
 def cancel(job_id):
     path = job_dir(job_id)
-    proc = PROCS.get(job_id)
+    with _LOCK:
+        proc = PROCS.get(job_id)
+        if job_id in QUEUE or (proc and proc.poll() is None):
+            open(os.path.join(path, 'cancelled'), 'w').close()
     if proc and proc.poll() is None:
-        open(os.path.join(path, 'cancelled'), 'w').close()
         proc.terminate()
         try:
             proc.wait(timeout=10)
@@ -405,7 +435,7 @@ def pg_params(args):
 def cluster(job_id):
     import lumos
     path = job_dir(job_id, ('de',))
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     genes = [str(g)[:200] for g in data.get('genes', [])][:300]
     return on_demand(lambda: lumos.cluster_order(path, genes, bool(data.get('rows')), bool(data.get('cols'))))
 
@@ -414,7 +444,7 @@ def cluster(job_id):
 def string_network(job_id):
     import lumos
     path = job_dir(job_id, ('enrich',))
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     genes = [str(g)[:40] for g in data.get('genes', []) if g][:500]
     score = data.get('score', 400) if data.get('score') in (150, 400, 700, 900) else 400
     network_type = data.get('network_type') if data.get('network_type') in ('functional', 'physical') else 'functional'
@@ -443,7 +473,7 @@ def propagation(job_id):
 def sensitivity(job_id):
     import lumos
     path = job_dir(job_id, ('enrich',))
-    data = request.get_json(silent=True) or {}
+    data = json_body()
 
     def grid(key, lo, hi, default):
         values = sorted({float(v) for v in data.get(key, []) if isinstance(v, (int, float)) and lo <= v <= hi})
@@ -460,7 +490,7 @@ def sensitivity(job_id):
 def report():
     """Self-contained interactive HTML report of the figures and tables shown on the page."""
     import lumos
-    payload = request.get_json(silent=True) or {}
+    payload = json_body()
     try:
         html = lumos.html_report(payload, os.path.join(APP_ROOT, 'static'))
     except Exception as exc:
