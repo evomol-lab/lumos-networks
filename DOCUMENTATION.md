@@ -427,6 +427,7 @@ With rootful Docker on Linux, add `--user "$(id -u):$(id -g)"` so the job files 
 | `LUMOS_JOB_RETENTION_DAYS` | `0` | delete jobs older than this at start-up (0 keeps all) |
 | `LUMOS_MAX_DOWNLOAD_MB` | `2048` | largest GEO supplementary file or archive downloaded |
 | `LUMOS_THREADS` | `8` | simultaneous requests served by waitress |
+| `LUMOS_MAX_JOBS` | `2` | calculations (dataset, DE, integration, enrichment) run at the same time; later ones wait in a queue |
 | `LUMOS_LIBRARY_DIR` | (empty; `/opt/lumos/libraries` in the image) | Enrichr libraries used before any download |
 | `LUMOS_UPDATE_CHECK` | `0` (`1` in the image) | compare the version with the releases on Docker Hub at start-up |
 | `LUMOS_UPDATE_REPO` | `evomol/lumos-networks` | Docker Hub repository of that check |
