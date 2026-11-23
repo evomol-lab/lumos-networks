@@ -1014,6 +1014,19 @@ def design_frame(dataset, sample_ids):
 
 def run_deseq2(counts, design, formula, contrast, fdr, cpus):
     """PyDESeq2 Wald test of the condition coefficient and VST values for the plots."""
+    from concurrent.futures import BrokenExecutor
+    try:
+        return _deseq2(counts, design, formula, contrast, fdr, cpus)
+    except BrokenExecutor as exc:
+        # The joblib worker processes can die (memory pressure, or invalid handles on Windows); the fit is
+        # per gene, so one CPU gives the same numbers, only slower.
+        if cpus == 1:
+            raise
+        say(f'DESeq2: the parallel workers failed ({type(exc).__name__}); running again on one CPU.')
+        return _deseq2(counts, design, formula, contrast, fdr, 1)
+
+
+def _deseq2(counts, design, formula, contrast, fdr, cpus):
     from pydeseq2.dds import DeseqDataSet
     from pydeseq2.ds import DeseqStats
     try:
@@ -2135,7 +2148,7 @@ def priorigraph(enrich_dir, n_terms=6, term_fdr=0.05, tf_fdr=0.05):
                            'libraries': ', '.join(sorted(set(grp['Library']))), 'status': status.get(tf)})
     regulators.sort(key=lambda r: (-r['targets_in_network'], r['fdr'] if r['fdr'] is not None else 1))
     targets = []
-    for gene in network_genes:
+    for gene in sorted(network_genes):     # sorted: ties keep the same order in every run (sets are hash-ordered)
         targets.append({'gene': gene, 'regulators': int(shown.loc[shown['Target'] == gene, 'TF'].nunique()),
                         'terms': sum(1 for t in used_terms if gene in t['genes']), 'status': status.get(gene),
                         'effect': fnum(ev_map['Effect'].get(gene)), 'fdr': fnum(ev_map['FDR'].get(gene))})
@@ -2148,7 +2161,7 @@ def priorigraph(enrich_dir, n_terms=6, term_fdr=0.05, tf_fdr=0.05):
             mapping.append({'term': t['term'], 'library': t['library'], 'regulator': counts.index[0],
                             'regulator_targets': int(counts.iloc[0]), 'genes_in_network': len(tg), 'fdr': t['fdr']})
     evidence = sorted(({'gene': g, 'effect': fnum(ev_map['Effect'].get(g)), 'fdr': fnum(ev_map['FDR'].get(g))}
-                       for g in network_genes), key=lambda r: (r['fdr'] if r['fdr'] is not None else 1))
+                       for g in sorted(network_genes)), key=lambda r: (r['fdr'] if r['fdr'] is not None else 1))
     edge_table = [{'tf': r.TF, 'target': r.Target, 'library': r.Library, 'direction': r.Direction, 'term': r.Term,
                    'fdr': fnum(r.FDR)} for r in shown.itertuples()]
     return {'nodes': list(nodes.values()), 'edges': edges, 'regulators': regulators, 'targets': targets,
@@ -2211,8 +2224,13 @@ def sensitivity(enrich_dir, tf_fdr=0.05, fdrs=(0.01, 0.05, 0.10), effects=(0.5, 
             'Mean_RWR_Score': 'mean_score', 'SD_RWR_Score': 'sd_score', 'Median_Linear_Propagation': 'median_linear'}
     out = [{v: (r[k] if k == 'Node' else fnum(r[k])) for k, v in cols.items()} for _, r in summary.iterrows()]
     name = 'sensitivity_configurations.csv'          # every configuration, for download
-    rankings.to_csv(os.path.join(enrich_dir, name + '.tmp'), index=False, float_format='%.6g')
-    os.replace(os.path.join(enrich_dir, name + '.tmp'), os.path.join(enrich_dir, name))
+    fd, tmp = tempfile.mkstemp(suffix='.tmp', dir=enrich_dir)   # one per request: concurrent calls share the job
+    with os.fdopen(fd, 'w', newline='') as fh:
+        rankings.to_csv(fh, index=False, float_format='%.6g')
+    try:
+        os.replace(tmp, os.path.join(enrich_dir, name))
+    except PermissionError:      # Windows: the file is being downloaded or replaced by another request right now
+        os.remove(tmp)
     return {'configurations': int(rankings['Configuration'].nunique()), 'rows': out, 'file': name}
 
 
