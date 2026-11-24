@@ -1,53 +1,78 @@
 # syntax=docker/dockerfile:1
+# Lumos Networks: web interface + command line, with R/Bioconductor limma.
+#
+# Image names are fully qualified so the same file builds with Docker and Podman.
+# Podman needs --format docker to keep the HEALTHCHECK (its default OCI format drops it).
+#
+#   podman build --format docker -t docker.io/evomol/lumos-networks:2.1.0 .
+#   podman run --rm -p 5070:5070 docker.io/evomol/lumos-networks:2.1.0                  # web interface
+#   docker run --rm --pull always -p 5070:5070 docker.io/evomol/lumos-networks:latest   # newest image at every start
+#   podman run --rm -v "$PWD":/data -w /data docker.io/evomol/lumos-networks:2.1.0 \
+#       python /opt/lumos/lumos.py dataset --geo GSE117769 --outdir data            # command line
+#   podman run --rm docker.io/evomol/lumos-networks:2.1.0 \
+#       python -m pytest -q /opt/lumos/tests                                        # tests
 
-# ---- builder: instala as dependências Python isoladas do runtime final ----
-FROM python:3.11-slim-bookworm AS builder
+ARG PYTHON_IMAGE=docker.io/library/python:3.11-slim-bookworm
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+# ---- build: Python dependencies in a virtual environment, without pip caches
+FROM ${PYTHON_IMAGE} AS build
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN python -m venv /opt/venv
+COPY requirements.txt /tmp/requirements.txt
+RUN /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install -r /tmp/requirements.txt pytest
 
-WORKDIR /app
-
-COPY requirements.txt ./
-RUN python -m pip install --no-cache-dir --upgrade pip && \
-    python -m pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# ---- runtime: imagem final, sem toolchain de build nem cache de pip ----
-FROM python:3.11-slim-bookworm
-
+# ---- runtime
+FROM ${PYTHON_IMAGE}
+ARG VERSION=2.1.0
 LABEL org.opencontainers.image.title="Lumos Networks" \
-      org.opencontainers.image.description="Transcriptomic analysis, functional context, and prior-knowledge networks (EvoMol-Lab/BioME-UFRN)" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.description="Transcriptomic analysis, functional context and prior-knowledge networks: web interface and command line, with limma (R) and PyDESeq2" \
+      org.opencontainers.image.url="https://hub.docker.com/r/evomol/lumos-networks" \
+      org.opencontainers.image.source="https://github.com/evomol-lab/lumos-networks" \
+      org.opencontainers.image.documentation="https://github.com/evomol-lab/lumos-networks/blob/main/DOCUMENTATION.md" \
+      org.opencontainers.image.vendor="EvoMol-Lab, BioME, UFRN" \
       org.opencontainers.image.licenses="Apache-2.0"
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
+ENV PATH=/opt/venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    STREAMLIT_SERVER_HEADLESS=true \
-    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
-    STREAMLIT_SERVER_PORT=8501 \
-    PYTHONPATH=/app
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/opt/lumos \
+    MPLBACKEND=Agg \
+    LUMOS_HOST=0.0.0.0 \
+    LUMOS_PORT=5070 \
+    LUMOS_JOBS_DIR=/opt/lumos/lumos_jobs \
+    LUMOS_LIBRARY_DIR=/opt/lumos/libraries \
+    LUMOS_UPDATE_CHECK=1
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         r-base-core \
         r-bioc-limma \
         r-cran-jsonlite \
         r-cran-statmod \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-COPY --from=builder /install /usr/local
-
-COPY . ./
-
-RUN useradd --create-home --uid 10001 lumos && chown -R lumos:lumos /app
-USER lumos
-
-EXPOSE 8501
-
+COPY --from=build /opt/venv /opt/venv
+WORKDIR /opt/lumos
+COPY lumos.py lumos_core.py lumos_report.py LumosGUI.py DOCUMENTATION.md README.md LICENSE NOTICE ./
+COPY r/ r/
+COPY templates/ templates/
+COPY static/ static/
+COPY tests/ tests/
+# The default Enrichr libraries ship inside the image: the enrichment needs no access to Enrichr (servers
+# whose address it refuses, networks without Internet) and every container uses the same versions.
+RUN LUMOS_CACHE_DIR=/opt/lumos/libraries python -c "import lumos; \
+        [lumos.library_sets(n) for n in lumos.DEFAULT_PATHWAY_LIBRARIES + lumos.DEFAULT_TF_LIBRARIES]" && \
+    ls -l /opt/lumos/libraries
+# Jobs of the web interface; mount a host directory here to keep them. The image runs as root,
+# like the other EvoMol images, so a mounted folder is writable with rootless Podman; with rootful
+# Docker, add --user "$(id -u):$(id -g)" so the files belong to you.
+RUN mkdir -p lumos_jobs && chmod 777 lumos_jobs
+EXPOSE 5070
+# At start-up the release tags on Docker Hub are compared with this version and a newer one is reported in
+# the log and the page (LUMOS_UPDATE_CHECK=0 turns it off). A container cannot replace itself: update with
+# `docker pull`, or start it with `docker run --pull always` to fetch the newest image every time.
+# Python running as PID 1 ignores SIGTERM; SIGINT stops the Flask server cleanly.
+STOPSIGNAL SIGINT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)" || exit 1
-
-CMD ["streamlit", "run", "Lumos_Home.py"]
+  CMD python -c "import os, urllib.request as u; u.urlopen('http://127.0.0.1:%s/api/capabilities' % os.environ.get('LUMOS_PORT', '5070'), timeout=3)" || exit 1
+# Absolute path: Apptainer images built from this one (docker://...) ignore WORKDIR.
+CMD ["python", "/opt/lumos/LumosGUI.py"]

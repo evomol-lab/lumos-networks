@@ -1,0 +1,21 @@
+# Jobs of the web interface and command-line results
+lumos_jobs/
+run/
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Builds: PyInstaller (build/, dist/) and Apptainer images. Publish executables as
+# GitHub releases instead of committing them.
+build/
+dist/
+*.sif
+
+# Editors and operating systems
+.DS_Store
+*.swp
