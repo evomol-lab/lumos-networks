@@ -363,6 +363,11 @@ signatures, RWR mass conservation and network sensitivity; the engine tests cove
 sample matching, DESeq2/limma/Welch runs that recover planted genes, design formulas, the three
 integrations, PrioriGraph construction and the HTML report.
 
+Before the 2.1.0 release, the web server was also load-tested with the help of
+[Claude Code](https://claude.com/claude-code) (Anthropic), which wrote and ran the stress tests:
+concurrent analyses and enrichments, request floods, malformed and hostile input, job cancellation
+and memory use, checking that server results match the command line exactly.
+
 <a id="project-structure"></a>
 
 ## 🗂️ Project structure
